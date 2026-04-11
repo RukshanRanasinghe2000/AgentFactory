@@ -442,10 +442,10 @@ function buildYaml(spec: AgentSpec): string {
 
   // Build output schema section
   let outputSchemaSection = "";
-  if (spec.output_format === "json" && spec.json_output_template.trim()) {
+  if (spec.output_format === "json" && spec.json_output_template?.trim()) {
     outputSchemaSection = `\n---\n\n# Output Schema\n\n\`\`\`json\n${spec.json_output_template.trim()}\n\`\`\``;
-  } else if (spec.output_format !== "json" && spec.output_schema_fields.length > 0) {
-    const lines = spec.output_schema_fields.map(
+  } else if (spec.output_format !== "json" && (spec.output_schema_fields?.length ?? 0) > 0) {
+    const lines = (spec.output_schema_fields ?? []).map(
       (f) => `- **${f.key}** (${f.type}${f.required ? ", required" : ""}): ${f.description}`
     );
     outputSchemaSection = `\n---\n\n# Output Schema\n\n${lines.join("\n")}`;
