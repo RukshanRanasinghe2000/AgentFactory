@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { AgentSpec, AgentTool } from "@/lib/types";
 import FieldBlock from "./FieldBlock";
 import OutputSchemaBuilder from "./OutputSchemaBuilder";
+import PreviewPopup from "./PreviewPopup";
 import { Plus, Trash2, Download, Code2, Play } from "lucide-react";
 import clsx from "clsx";
 
@@ -15,6 +16,7 @@ type Tab = "core" | "model" | "tools" | "schema" | "preview";
 
 export default function SpecEditor({ spec, onChange }: Props) {
   const [tab, setTab] = useState<Tab>("core");
+  const [popup, setPopup] = useState<{ label: string; content: string } | null>(null);
 
   function set<K extends keyof AgentSpec>(key: K, value: AgentSpec[K]) {
     onChange({ ...spec, [key]: value });
@@ -114,7 +116,7 @@ export default function SpecEditor({ spec, onChange }: Props) {
               className="field-input"
             />
           </FieldBlock>
-          <FieldBlock label="Description" className="md:col-span-2">
+          <FieldBlock label="Description" className="md:col-span-2" onPreview={() => setPopup({ label: "Description", content: spec.description })}>
             <textarea
               value={spec.description}
               onChange={(e) => set("description", e.target.value)}
@@ -123,7 +125,7 @@ export default function SpecEditor({ spec, onChange }: Props) {
               className="field-input resize-none"
             />
           </FieldBlock>
-          <FieldBlock label="Role" className="md:col-span-2">
+          <FieldBlock label="Role" className="md:col-span-2" onPreview={() => setPopup({ label: "Role", content: spec.role })}>
             <textarea
               value={spec.role}
               onChange={(e) => set("role", e.target.value)}
@@ -132,7 +134,7 @@ export default function SpecEditor({ spec, onChange }: Props) {
               className="field-input resize-none"
             />
           </FieldBlock>
-          <FieldBlock label="Instructions" className="md:col-span-2">
+          <FieldBlock label="Instructions" className="md:col-span-2" onPreview={() => setPopup({ label: "Instructions", content: spec.instructions })}>
             <textarea
               value={spec.instructions}
               onChange={(e) => set("instructions", e.target.value)}
@@ -191,7 +193,7 @@ export default function SpecEditor({ spec, onChange }: Props) {
               <option value="long-term">Long-term</option>
             </select>
           </FieldBlock>
-          <FieldBlock label="Enforcement" className="md:col-span-2">
+          <FieldBlock label="Enforcement" className="md:col-span-2" onPreview={() => setPopup({ label: "Enforcement", content: spec.enforcement })}>
             <textarea
               value={spec.enforcement}
               onChange={(e) => set("enforcement", e.target.value)}
@@ -327,6 +329,15 @@ export default function SpecEditor({ spec, onChange }: Props) {
         <pre className="glass rounded-xl p-5 text-xs text-slate-300 overflow-auto whitespace-pre-wrap leading-relaxed">
           {buildYaml(spec)}
         </pre>
+      )}
+
+      {/* Field preview popup */}
+      {popup && (
+        <PreviewPopup
+          label={popup.label}
+          content={popup.content}
+          onClose={() => setPopup(null)}
+        />
       )}
     </div>
   );
