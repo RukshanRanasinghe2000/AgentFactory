@@ -337,6 +337,17 @@ export default function SpecEditor({ spec, onChange }: Props) {
           label={popup.label}
           content={popup.content}
           onClose={() => setPopup(null)}
+          onSave={(value) => {
+            const keyMap: Record<string, keyof AgentSpec> = {
+              Description: "description",
+              Role: "role",
+              Instructions: "instructions",
+              Enforcement: "enforcement",
+            };
+            const k = keyMap[popup.label];
+            if (k) set(k, value as AgentSpec[typeof k]);
+            setPopup({ ...popup, content: value });
+          }}
         />
       )}
     </div>
