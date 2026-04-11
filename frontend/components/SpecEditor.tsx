@@ -12,7 +12,7 @@ interface Props {
   onChange: (s: AgentSpec) => void;
 }
 
-type Tab = "core" | "model" | "tools" | "schema" | "preview";
+type Tab = "core" | "model" | "tools" | "preview";
 
 export default function SpecEditor({ spec, onChange }: Props) {
   const [tab, setTab] = useState<Tab>("core");
@@ -59,7 +59,6 @@ export default function SpecEditor({ spec, onChange }: Props) {
     { id: "core", label: "Core" },
     { id: "model", label: "Model" },
     { id: "tools", label: "Tools" },
-    { id: "schema", label: "Schema" },
     { id: "preview", label: "Preview" },
   ];
 
@@ -305,22 +304,6 @@ export default function SpecEditor({ spec, onChange }: Props) {
           >
             <Plus size={15} /> Add Tool
           </button>
-        </div>
-      )}
-
-      {/* Schema tab */}
-      {tab === "schema" && (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <SchemaEditor
-            label="Input Schema"
-            schema={spec.input_schema}
-            onChange={(s) => set("input_schema", s)}
-          />
-          <SchemaEditor
-            label="Output Schema"
-            schema={spec.output_schema}
-            onChange={(s) => set("output_schema", s)}
-          />
         </div>
       )}
 
