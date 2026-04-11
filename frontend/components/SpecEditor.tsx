@@ -2,6 +2,7 @@
 import { useState } from "react";
 import type { AgentSpec, AgentTool } from "@/lib/types";
 import FieldBlock from "./FieldBlock";
+import OutputSchemaBuilder from "./OutputSchemaBuilder";
 import { Plus, Trash2, Download, Code2, Play } from "lucide-react";
 import clsx from "clsx";
 
@@ -21,6 +22,10 @@ export default function SpecEditor({ spec, onChange }: Props) {
 
   function setModel(key: keyof AgentSpec["model"], value: string | number) {
     onChange({ ...spec, model: { ...spec.model, [key]: value } });
+  }
+
+  function setAuth(key: keyof AgentSpec["model"]["authentication"], value: string) {
+    onChange({ ...spec, model: { ...spec.model, authentication: { ...spec.model.authentication, [key]: value } } });
   }
 
   function addTool() {
@@ -148,6 +153,13 @@ export default function SpecEditor({ spec, onChange }: Props) {
               <option value="html">HTML</option>
             </select>
           </FieldBlock>
+          <OutputSchemaBuilder
+            format={spec.output_format}
+            fields={spec.output_schema_fields}
+            jsonTemplate={spec.json_output_template}
+            onChange={(fields) => set("output_schema_fields", fields)}
+            onJsonTemplateChange={(v) => set("json_output_template", v)}
+          />
           <FieldBlock label="Execution Mode">
             <select
               value={spec.execution_mode}
@@ -214,7 +226,34 @@ export default function SpecEditor({ spec, onChange }: Props) {
               className="field-input"
             />
           </FieldBlock>
-          <FieldBlock label="Temperature" hint="0 = deterministic, 1 = creative">
+          <FieldBlock label="Base URL" hint="Optional — override API endpoint" className="md:col-span-2">
+            <input
+              value={spec.model.base_url}
+              onChange={(e) => setModel("base_url", e.target.value)}
+              placeholder="https://api.groq.com/openai/v1"
+              className="field-input"
+            />
+          </FieldBlock>
+          <FieldBlock label="Auth Type">
+            <select
+              value={spec.model.authentication.type}
+              onChange={(e) => setAuth("type", e.target.value as AgentSpec["model"]["authentication"]["type"])}
+              className="field-input"
+            >
+              <option value="api-key">API Key</option>
+              <option value="bearer">Bearer Token</option>
+              <option value="none">None</option>
+            </select>
+          </FieldBlock>
+          <FieldBlock label="API Key" hint="Use ${env:VAR_NAME} for env vars">
+            <input
+              value={spec.model.authentication.api_key}
+              onChange={(e) => setAuth("api_key", e.target.value)}
+              placeholder="${env:MODEL_API_KEY}"
+              className="field-input"
+            />
+          </FieldBlock>
+          <FieldBlock label="Temperature" hint="0 = deterministic, 1 = creative" className="md:col-span-2">
             <input
               type="range"
               min={0}
@@ -362,47 +401,86 @@ function SchemaEditor({
   );
 }
 
+function buildJsonExample(fields: AgentSpec["output_schema_fields"]): string {
+  const topLevel: Record<string, unknown> = {};
+  for (const f of fields) {
+    if (f.key.includes("[].")) continue;
+    topLevel[f.key] = f.enum && f.enum.length > 0
+      ? f.enum.join(" | ")
+      : f.type === "number" ? 0
+      : f.type === "boolean" ? false
+      : f.type === "array" ? []
+      : f.type === "object" ? {}
+      : `<${f.description || f.key}>`;
+  }
+  return JSON.stringify(topLevel, null, 2);
+}
+
 function buildYaml(spec: AgentSpec): string {
+  // Multiline description using YAML block scalar
+  const descLines = spec.description.trim().split("\n");
+  const descYaml = descLines.length > 1
+    ? `description: >\n${descLines.map((l) => `  ${l}`).join("\n")}`
+    : `description: "${spec.description}"`;
+
+  const toolsYaml = spec.tools.length
+    ? spec.tools.map((t) => `  - name: "${t.name}"\n    description: "${t.description ?? ""}"`).join("\n")
+    : "  []";
+
+  const inputYaml = Object.entries(spec.input_schema).length
+    ? Object.entries(spec.input_schema).map(([k, v]) => `  ${k}: ${v}`).join("\n")
+    : "  {}";
+
+  const outputYaml = Object.entries(spec.output_schema).length
+    ? Object.entries(spec.output_schema).map(([k, v]) => `  ${k}: ${v}`).join("\n")
+    : "  {}";
+
+  const baseUrlLine = spec.model.base_url ? `\n  base_url: "${spec.model.base_url}"` : "";
+  const authLine = spec.model.authentication.type !== "none"
+    ? `\n  authentication:\n    type: "${spec.model.authentication.type}"\n    api_key: "${spec.model.authentication.api_key}"`
+    : "";
+
+  // Build output schema section
+  let outputSchemaSection = "";
+  if (spec.output_format === "json" && spec.json_output_template.trim()) {
+    outputSchemaSection = `\n---\n\n# Output Schema\n\n\`\`\`json\n${spec.json_output_template.trim()}\n\`\`\``;
+  } else if (spec.output_format !== "json" && spec.output_schema_fields.length > 0) {
+    const lines = spec.output_schema_fields.map(
+      (f) => `- **${f.key}** (${f.type}${f.required ? ", required" : ""}): ${f.description}`
+    );
+    outputSchemaSection = `\n---\n\n# Output Schema\n\n${lines.join("\n")}`;
+  }
+
   return `---
 spec_version: "${spec.spec_version}"
 name: "${spec.name}"
-description: "${spec.description}"
+${descYaml}
 version: "${spec.version}"
-
 model:
-  provider: "${spec.model.provider}"
   name: "${spec.model.name}"
-  temperature: ${spec.model.temperature}
-
+  provider: "${spec.model.provider}"${baseUrlLine}${authLine}
 max_iterations: ${spec.max_iterations}
-execution_mode: "${spec.execution_mode}"
-
-memory:
-  type: "${spec.memory.type}"
-
-tools:
-${spec.tools.length ? spec.tools.map((t) => `  - name: "${t.name}"\n    description: "${t.description ?? ""}"`).join("\n") : "  []"}
-
-input_schema:
-${Object.entries(spec.input_schema).length ? Object.entries(spec.input_schema).map(([k, v]) => `  ${k}: ${v}`).join("\n") : "  {}"}
-
-output_schema:
-${Object.entries(spec.output_schema).length ? Object.entries(spec.output_schema).map(([k, v]) => `  ${k}: ${v}`).join("\n") : "  {}"}
 ---
 
-## Role
+# Role
 
 ${spec.role}
 
-## Instructions
+---
+
+# Instructions
 
 ${spec.instructions}
 
-## Output Format
+---
 
-${spec.output_format}
+# Output Format
 
-## Enforcement
+${spec.output_format}${outputSchemaSection}
+
+---
+
+# Enforcement
 
 ${spec.enforcement}
 `;

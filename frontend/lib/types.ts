@@ -3,6 +3,18 @@ export interface AgentTool {
   description?: string;
 }
 
+export type FieldType = "string" | "number" | "boolean" | "array" | "object";
+export type SeverityOption = "error" | "warning" | "info";
+
+export interface OutputSchemaField {
+  key: string;
+  type: FieldType;
+  description: string;
+  required: boolean;
+  // for enum-like fields (e.g. severity)
+  enum?: string[];
+}
+
 export interface AgentSpec {
   spec_version: string;
   name: string;
@@ -12,6 +24,11 @@ export interface AgentSpec {
     provider: string;
     name: string;
     temperature: number;
+    base_url: string;
+    authentication: {
+      type: "api-key" | "bearer" | "none";
+      api_key: string;
+    };
   };
   max_iterations: number;
   role: string;
@@ -24,6 +41,8 @@ export interface AgentSpec {
   tools: AgentTool[];
   input_schema: Record<string, string>;
   output_schema: Record<string, string>;
+  output_schema_fields: OutputSchemaField[];
+  json_output_template: string;
   enforcement: string;
 }
 
@@ -36,6 +55,11 @@ export const defaultSpec = (): AgentSpec => ({
     provider: "openai",
     name: "gpt-4o",
     temperature: 0.7,
+    base_url: "",
+    authentication: {
+      type: "api-key",
+      api_key: "${env:MODEL_API_KEY}",
+    },
   },
   max_iterations: 5,
   role: "",
@@ -46,5 +70,7 @@ export const defaultSpec = (): AgentSpec => ({
   tools: [],
   input_schema: {},
   output_schema: {},
+  output_schema_fields: [],
+  json_output_template: "",
   enforcement: "",
 });
