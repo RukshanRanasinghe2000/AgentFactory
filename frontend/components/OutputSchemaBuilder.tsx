@@ -88,7 +88,13 @@ function emptyField(): OutputSchemaField {
 
 // Syntax highlight JSON string into colored spans
 function highlight(json: string): string {
-  return json.replace(
+  // Escape HTML special chars first so <placeholders> don't break rendering
+  const escaped = json
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  return escaped.replace(
     /("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d*)?(?:[eE][+\-]?\d+)?)/g,
     (match) => {
       let cls = "text-violet-300";
@@ -123,8 +129,10 @@ function JsonOutputEditor({
 
   function handleChange(v: string) {
     setRaw(v);
+    // Strip placeholder tokens before validating so <...> values don't cause false errors
+    const stripped = v.replace(/"<[^"]*>"/g, '"__placeholder__"');
     try {
-      if (v.trim()) JSON.parse(v);
+      if (stripped.trim()) JSON.parse(stripped);
       setError(null);
     } catch (e) {
       setError((e as Error).message);
@@ -146,7 +154,7 @@ function JsonOutputEditor({
   }
 
   const isValid = raw.trim() === "" || error === null;
-  const highlighted = isValid && raw.trim() ? highlight(raw) : null;
+  const highlighted = raw.trim() ? highlight(raw) : null;
 
   return (
     <div className="md:col-span-2 flex flex-col gap-3">
