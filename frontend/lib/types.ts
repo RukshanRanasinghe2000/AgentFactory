@@ -1,6 +1,41 @@
 export interface AgentTool {
   name: string;
-  description?: string;
+  transport: {
+    type: "http" | "stdio";
+    url?: string;
+    command?: string;
+    args?: string[];
+  };
+  authentication?: {
+    type: "api-key" | "bearer" | "basic" | "none";
+    token?: string;
+    api_key?: string;
+    username?: string;
+    password?: string;
+  };
+  env?: Record<string, string>;
+  tool_filter?: {
+    allow: string[];
+  };
+}
+
+export interface AgentSkill {
+  type: "local" | "remote";
+  path?: string;
+  url?: string;
+}
+
+export interface AgentInterface {
+  type: "webchat" | "consolechat" | "webhook";
+  prompt?: string;
+  exposure?: {
+    http?: { path: string };
+  };
+  subscription?: {
+    protocol: string;
+    callback: string;
+    secret?: string;
+  };
 }
 
 export type FieldType = "string" | "number" | "boolean" | "array" | "object";
@@ -11,7 +46,6 @@ export interface OutputSchemaField {
   type: FieldType;
   description: string;
   required: boolean;
-  // for enum-like fields (e.g. severity)
   enum?: string[];
 }
 
@@ -20,6 +54,9 @@ export interface AgentSpec {
   name: string;
   description: string;
   version: string;
+  license: string;
+  author: string;
+  provider: { name: string; url: string };
   model: {
     provider: string;
     name: string;
@@ -31,13 +68,13 @@ export interface AgentSpec {
     };
   };
   max_iterations: number;
+  interfaces: AgentInterface[];
+  skills: AgentSkill[];
   role: string;
   instructions: string;
   output_format: string;
   execution_mode: "sequential" | "agentic";
-  memory: {
-    type: "none" | "short-term" | "long-term";
-  };
+  memory: { type: "none" | "short-term" | "long-term" };
   tools: AgentTool[];
   input_schema: Record<string, string>;
   output_schema: Record<string, string>;
@@ -51,6 +88,9 @@ export const defaultSpec = (): AgentSpec => ({
   name: "",
   description: "",
   version: "0.1.0",
+  license: "",
+  author: "",
+  provider: { name: "", url: "" },
   model: {
     provider: "openai",
     name: "gpt-4o",
@@ -62,6 +102,8 @@ export const defaultSpec = (): AgentSpec => ({
     },
   },
   max_iterations: 5,
+  interfaces: [],
+  skills: [],
   role: "",
   instructions: "",
   output_format: "markdown",
