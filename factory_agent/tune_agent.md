@@ -160,6 +160,24 @@ Agent idea: A customer support agent for an e-commerce store
 
 This agent is called from `frontend/app/api/refine/route.ts`.
 
+## Flow Overview
+
+```
+User types idea
+      │
+      ▼
+/api/clarify  ──► 3 targeted questions shown to user
+      │
+      ▼ (user answers + submits)
+/api/refine   ──► enriched idea (original + answers) → full AgentSpec JSON
+      │
+      ▼
+Builder pre-filled with generated spec
+```
+
+If `/api/clarify` fails, the flow skips straight to `/api/refine` with the raw idea.
+The user can also click "Skip" to bypass clarification.
+
 ## Request Payload
 
 ```json
