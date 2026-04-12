@@ -74,29 +74,29 @@ export default function SpecEditor({ spec, onChange }: Props) {
       {/* ── CORE TAB ── */}
       {tab === "core" && (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <FieldBlock label="Agent Name" hint="Short, descriptive name">
+          <FieldBlock label="Agent Name" hint="What should we call this agent?">
             <input value={spec.name} onChange={(e) => set("name", e.target.value)}
-              placeholder="e.g. Code Performance Reviewer" className="field-input" />
+              placeholder="My Awesome Agent" className="field-input" />
           </FieldBlock>
-          <FieldBlock label="Version">
+          <FieldBlock label="Version" hint="Semantic version">
             <input value={spec.version} onChange={(e) => set("version", e.target.value)}
-              placeholder="0.1.0" className="field-input" />
+              placeholder="1.0.0" className="field-input" />
           </FieldBlock>
-          <FieldBlock label="License" hint="e.g. Apache-2.0, MIT">
+          <FieldBlock label="License" hint="How others may use this agent">
             <input value={spec.license} onChange={(e) => set("license", e.target.value)}
-              placeholder="Apache-2.0" className="field-input" />
+              placeholder="MIT" className="field-input" />
           </FieldBlock>
-          <FieldBlock label="Author" hint="Name or email">
+          <FieldBlock label="Author" hint="Who built this?">
             <input value={spec.author} onChange={(e) => set("author", e.target.value)}
-              placeholder="Acme Corp <dev@acme.com>" className="field-input" />
+              placeholder="Jane Doe <jane@example.com>" className="field-input" />
           </FieldBlock>
-          <FieldBlock label="Provider Name">
+          <FieldBlock label="Provider Name" hint="Company or team behind this agent">
             <input value={spec.provider.name} onChange={(e) => set("provider", { ...spec.provider, name: e.target.value })}
-              placeholder="Acme Commerce" className="field-input" />
+              placeholder="My Company" className="field-input" />
           </FieldBlock>
-          <FieldBlock label="Provider URL">
+          <FieldBlock label="Provider URL" hint="Homepage or docs link">
             <input value={spec.provider.url} onChange={(e) => set("provider", { ...spec.provider, url: e.target.value })}
-              placeholder="https://acme.example.com" className="field-input" />
+              placeholder="https://mycompany.com" className="field-input" />
           </FieldBlock>
           <FieldBlock label="Description" className="md:col-span-2" onPreview={() => setPopup({ label: "Description", content: spec.description })}>
             <textarea value={spec.description} onChange={(e) => set("description", e.target.value)}
@@ -459,7 +459,9 @@ function ToolsEditor({ tools, onChange }: { tools: AgentTool[]; onChange: (v: Ag
 
 // ── Skills Editor ─────────────────────────────────────────────────────────────
 function SkillsEditor({ skills, onChange }: { skills: AgentSkill[]; onChange: (v: AgentSkill[]) => void }) {
-  function add() { onChange([...skills, { type: "local", path: "./skills" }]); }
+  function add(type: AgentSkill["type"]) {
+    onChange([...skills, type === "local" ? { type: "local", path: "./skills" } : { type: "remote", url: "" }]);
+  }
   function update(i: number, patch: Partial<AgentSkill>) {
     const next = [...skills]; next[i] = { ...next[i], ...patch }; onChange(next);
   }
@@ -467,23 +469,88 @@ function SkillsEditor({ skills, onChange }: { skills: AgentSkill[]; onChange: (v
 
   return (
     <div className="md:col-span-2 flex flex-col gap-3">
+      {/* Header */}
       <div className="flex items-center justify-between">
-        <p className="text-xs font-medium text-slate-300 uppercase tracking-wide">Skills</p>
-        <button onClick={add} className="text-xs text-slate-500 hover:text-violet-400 transition-colors flex items-center gap-1">
-          <Plus size={11} /> Add Skill
-        </button>
+        <div>
+          <p className="text-xs font-medium text-slate-300 uppercase tracking-wide">Skills</p>
+          <p className="text-xs text-slate-500 mt-0.5">Reusable skill modules this agent can activate</p>
+        </div>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={() => add("local")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+          >
+            <Plus size={12} /> Local
+          </button>
+          <button
+            onClick={() => add("remote")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors"
+          >
+            <Plus size={12} /> Remote
+          </button>
+        </div>
       </div>
+
+      {/* Empty state */}
+      {skills.length === 0 && (
+        <div className="glass rounded-xl px-4 py-5 text-center text-slate-500 text-xs">
+          No skills added. Use <span className="text-slate-400">Local</span> for a folder path or <span className="text-slate-400">Remote</span> for a URL.
+        </div>
+      )}
+
+      {/* Skill cards */}
       {skills.map((skill, i) => (
-        <div key={i} className="flex gap-2 items-center">
-          <select value={skill.type} onChange={(e) => update(i, { type: e.target.value as AgentSkill["type"] })} className="field-input w-28 text-xs py-1">
-            <option value="local">local</option>
-            <option value="remote">remote</option>
-          </select>
-          <input value={skill.type === "local" ? (skill.path ?? "") : (skill.url ?? "")}
-            onChange={(e) => update(i, skill.type === "local" ? { path: e.target.value } : { url: e.target.value })}
-            placeholder={skill.type === "local" ? "./skills" : "https://skills.example.com"}
-            className="field-input text-xs py-1 flex-1" />
-          <button onClick={() => remove(i)} className="text-slate-600 hover:text-red-400 transition-colors"><Trash2 size={13} /></button>
+        <div key={i} className="glass rounded-xl p-4 flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className={`text-xs font-medium px-2 py-0.5 rounded-full border ${
+                skill.type === "local"
+                  ? "text-emerald-400 bg-emerald-900/30 border-emerald-700/40"
+                  : "text-sky-400 bg-sky-900/30 border-sky-700/40"
+              }`}>
+                {skill.type}
+              </span>
+              <span className="text-xs text-slate-400 truncate max-w-48">
+                {skill.type === "local" ? (skill.path || "no path set") : (skill.url || "no url set")}
+              </span>
+            </div>
+            <button onClick={() => remove(i)} className="text-slate-600 hover:text-red-400 transition-colors">
+              <Trash2 size={13} />
+            </button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <FieldBlock label="Type">
+              <select
+                value={skill.type}
+                onChange={(e) => update(i, { type: e.target.value as AgentSkill["type"], path: undefined, url: undefined })}
+                className="field-input"
+              >
+                <option value="local">local — folder on disk</option>
+                <option value="remote">remote — URL endpoint</option>
+              </select>
+            </FieldBlock>
+
+            {skill.type === "local" ? (
+              <FieldBlock label="Path" hint="Relative to agent file">
+                <input
+                  value={skill.path ?? ""}
+                  onChange={(e) => update(i, { path: e.target.value })}
+                  placeholder="./skills"
+                  className="field-input"
+                />
+              </FieldBlock>
+            ) : (
+              <FieldBlock label="URL">
+                <input
+                  value={skill.url ?? ""}
+                  onChange={(e) => update(i, { url: e.target.value })}
+                  placeholder="https://skills.example.com"
+                  className="field-input"
+                />
+              </FieldBlock>
+            )}
+          </div>
         </div>
       ))}
     </div>
