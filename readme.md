@@ -289,7 +289,7 @@ The following features are planned for future development:
 
 ### AI Refinement Engine
 - [x] Connect idea input to a real LLM API (OpenAI / Groq) to auto-generate spec fields
-- [ ] Iterative clarification loop — ask follow-up questions to improve the spec
+- [x] Iterative clarification loop — ask follow-up questions to improve the spec
 - [ ] Suggest tools, interfaces, and skills based on the agent description
 
 ### Agent Runtime
