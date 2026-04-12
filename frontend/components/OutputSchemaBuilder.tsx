@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Plus, Trash2, ChevronDown, CheckCircle, XCircle } from "lucide-react";
+import { Plus, Trash2, ChevronDown, CheckCircle, XCircle, Eye, X } from "lucide-react";
 import type { OutputSchemaField, FieldType } from "@/lib/types";
+import PreviewPopup from "./PreviewPopup";
 import clsx from "clsx";
 
 interface Props {
@@ -121,6 +122,7 @@ function JsonOutputEditor({
   const [raw, setRaw] = useState(value || "");
   const [error, setError] = useState<string | null>(null);
   const [showPreview, setShowPreview] = useState(true);
+  const [popup, setPopup] = useState<"editor" | "preview" | null>(null);
 
   // keep in sync if parent resets
   useEffect(() => {
@@ -129,7 +131,6 @@ function JsonOutputEditor({
 
   function handleChange(v: string) {
     setRaw(v);
-    // Strip placeholder tokens before validating so <...> values don't cause false errors
     const stripped = v.replace(/"<[^"]*>"/g, '"__placeholder__"');
     try {
       if (stripped.trim()) JSON.parse(stripped);
@@ -178,7 +179,16 @@ function JsonOutputEditor({
         {/* Textarea */}
         <div className="flex flex-col gap-1.5 flex-1">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-slate-500">Edit JSON template</span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500">Edit JSON template</span>
+              <button
+                onClick={() => setPopup("editor")}
+                title="Open in popup"
+                className="text-slate-600 hover:text-violet-400 transition-colors"
+              >
+                <Eye size={13} />
+              </button>
+            </div>
             <div className="flex items-center gap-2">
               {raw.trim() && (
                 <span className={clsx("flex items-center gap-1 text-xs", isValid ? "text-emerald-400" : "text-red-400")}>
@@ -221,10 +231,19 @@ function JsonOutputEditor({
         {/* Live highlighted preview */}
         {showPreview && (
           <div className="lg:w-80 flex flex-col gap-1.5 shrink-0">
-            <span className="text-xs text-slate-500 flex items-center gap-1.5">
-              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
-              Live preview
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-slate-500 flex items-center gap-1.5">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block animate-pulse" />
+                Live preview
+              </span>
+              <button
+                onClick={() => setPopup("preview")}
+                title="Open in popup"
+                className="text-slate-600 hover:text-violet-400 transition-colors"
+              >
+                <Eye size={13} />
+              </button>
+            </div>
             <pre className="glass rounded-xl p-4 text-xs leading-relaxed overflow-auto max-h-64 lg:max-h-none lg:flex-1 font-mono text-slate-400 min-h-32">
               {highlighted
                 ? <span dangerouslySetInnerHTML={{ __html: highlighted }} />
@@ -233,6 +252,78 @@ function JsonOutputEditor({
             </pre>
           </div>
         )}
+      </div>
+
+      {/* Editor popup — editable */}
+      {popup === "editor" && (
+        <PreviewPopup
+          label="JSON Output Template"
+          content={raw}
+          onClose={() => setPopup(null)}
+          onSave={(v) => { handleChange(v); setPopup(null); }}
+        />
+      )}
+
+      {/* Preview popup — read-only highlighted view */}
+      {popup === "preview" && (
+        <JsonPreviewPopup
+          content={raw}
+          highlighted={highlighted}
+          onClose={() => setPopup(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── Read-only syntax-highlighted JSON popup ───────────────────────────────────
+function JsonPreviewPopup({
+  content,
+  highlighted,
+  onClose,
+}: {
+  content: string;
+  highlighted: string | null;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const fn = (e: KeyboardEvent) => { if (e.key === "Escape") onClose(); };
+    window.addEventListener("keydown", fn);
+    return () => window.removeEventListener("keydown", fn);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+      <div
+        className="relative glass glow rounded-2xl w-full max-w-2xl max-h-[82vh] flex flex-col shadow-2xl"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+          <div className="flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+            <p className="text-sm font-medium text-white">Live Preview</p>
+            <span className="text-xs text-slate-500">JSON Output Schema</span>
+          </div>
+          <button onClick={onClose} className="text-slate-500 hover:text-white transition-colors">
+            <X size={16} />
+          </button>
+        </div>
+        {/* Content */}
+        <div className="overflow-y-auto px-5 py-4 flex-1">
+          {highlighted ? (
+            <pre
+              className="text-sm font-mono leading-relaxed text-slate-300 whitespace-pre-wrap"
+              dangerouslySetInnerHTML={{ __html: highlighted }}
+            />
+          ) : (
+            <p className="text-sm text-slate-500 italic">No content yet.</p>
+          )}
+        </div>
+        <div className="px-5 py-2.5 border-t border-slate-800">
+          <p className="text-xs text-slate-600">Read-only · Edit in the JSON template editor</p>
+        </div>
       </div>
     </div>
   );
