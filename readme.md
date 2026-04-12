@@ -316,11 +316,8 @@ The following features are planned for future development:
 - [ ] Simulate tool calls and show expected output
 - [ ] Validate spec completeness before export
 
-### Agent Marketplace
+### User Management
 - [ ] User accounts and agent publishing
-- [ ] Search and filter community agents
-- [ ] Import agent from marketplace into builder
-- [ ] Rating and fork count per agent
 
 ### Spec Language
 - [ ] JSON Schema validation for the spec format
