@@ -4,6 +4,7 @@ import type { AgentSpec, AgentTool, AgentInterface, AgentSkill } from "@/lib/typ
 import FieldBlock from "./FieldBlock";
 import OutputSchemaBuilder from "./OutputSchemaBuilder";
 import PreviewPopup from "./PreviewPopup";
+import TestAgentPanel from "./TestAgentPanel";
 import { Plus, Trash2, Download, Play, Code2 } from "lucide-react";
 import clsx from "clsx";
 
@@ -17,6 +18,8 @@ type Tab = "core" | "model" | "interfaces" | "tools" | "preview";
 export default function SpecEditor({ spec, onChange }: Props) {
   const [tab, setTab] = useState<Tab>("core");
   const [popup, setPopup] = useState<{ label: string; content: string } | null>(null);
+  const [showTest, setShowTest] = useState(false);
+  const [showGroqConfirm, setShowGroqConfirm] = useState(false);
 
   function set<K extends keyof AgentSpec>(key: K, value: AgentSpec[K]) {
     onChange({ ...spec, [key]: value });
@@ -65,11 +68,78 @@ export default function SpecEditor({ spec, onChange }: Props) {
           <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">
             <Code2 size={13} /> Generate Code
           </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-violet-700 hover:bg-violet-600 text-white transition-colors">
+          <button onClick={() => setShowGroqConfirm(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-violet-700 hover:bg-violet-600 text-white transition-colors">
             <Play size={13} /> Test Agent
           </button>
         </div>
       </div>
+
+      {/* Groq confirmation dialog */}
+      {showGroqConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowGroqConfirm(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative glass glow rounded-2xl w-full max-w-md flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <div className="px-6 py-5 flex flex-col gap-4">
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-lg bg-amber-900/40 shrink-0">
+                  <Play size={16} className="text-amber-400" />
+                </div>
+                <div>
+                  <p className="text-white font-semibold text-sm">Testing Environment Notice</p>
+                  <p className="text-slate-400 text-xs mt-1 leading-relaxed">
+                    The testing environment currently supports <span className="text-violet-300 font-medium">Groq only</span>.
+                    Your agent will be tested using:
+                  </p>
+                  <div className="mt-3 glass rounded-lg px-3 py-2 flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-emerald-400" />
+                    <span className="text-xs text-slate-300">
+                      <span className="text-emerald-400 font-medium">groq</span>
+                      {" · "}
+                      <span className="text-slate-200">llama-3.3-70b-versatile</span>
+                    </span>
+                  </div>
+                  {spec.model.provider !== "groq" && (
+                    <p className="text-xs text-amber-400/80 mt-2">
+                      Your configured model (<span className="font-medium">{spec.model.provider} · {spec.model.name}</span>) will not be used during testing.
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  onClick={() => setShowGroqConfirm(false)}
+                  className="flex-1 px-4 py-2 rounded-lg text-xs text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition-colors"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => { setShowGroqConfirm(false); setShowTest(true); }}
+                  className="flex-1 px-4 py-2 rounded-lg text-xs bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors flex items-center justify-center gap-1.5"
+                >
+                  <Play size={12} /> Continue with Groq
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Test Panel — always uses Groq regardless of spec model */}
+      {showTest && (
+        <TestAgentPanel
+          spec={{
+            ...spec,
+            model: {
+              ...spec.model,
+              provider: "groq",
+              name: "llama-3.3-70b-versatile",
+              base_url: "https://api.groq.com/openai/v1",
+              authentication: { type: "api-key", api_key: "" },
+            },
+          }}
+          onClose={() => setShowTest(false)}
+        />
+      )}
 
       {/* ── CORE TAB ── */}
       {tab === "core" && (
