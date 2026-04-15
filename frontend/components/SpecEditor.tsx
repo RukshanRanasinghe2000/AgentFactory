@@ -858,7 +858,19 @@ function buildYaml(spec: AgentSpec): string {
       lines.push(`  - name: "${tool.name}"`);
       lines.push("    transport:");
       lines.push(`      type: "${tool.transport.type}"`);
-      if (tool.transport.type === "http" && tool.transport.url) lines.push(`      url: "${tool.transport.url}"`);
+      if (tool.transport.type === "http" && tool.transport.url) {
+        // Build full URL with query_params appended as {KEY} placeholders
+        let fullUrl = tool.transport.url;
+        if (tool.query_params && tool.query_params.length > 0) {
+          const qs = tool.query_params
+            .map((p) => `${p.key}={${p.key.toUpperCase()}}`)
+            .join("&");
+          fullUrl = fullUrl.endsWith("?") || fullUrl.includes("?")
+            ? `${fullUrl.replace(/\?$/, "")}?${qs}`
+            : `${fullUrl}?${qs}`;
+        }
+        lines.push(`      url: "${fullUrl}"`);
+      }
       if (tool.transport.type === "stdio") {
         if (tool.transport.command) lines.push(`      command: "${tool.transport.command}"`);
         if (tool.transport.args && tool.transport.args.length > 0) {
@@ -882,6 +894,15 @@ function buildYaml(spec: AgentSpec): string {
         lines.push("    tool_filter:");
         lines.push("      allow:");
         tool.tool_filter.allow.forEach((a) => lines.push(`      - "${a}"`));
+      }
+      if (tool.query_params && tool.query_params.length > 0) {
+        lines.push("    query_params:");
+        tool.query_params.forEach((p) => {
+          lines.push(`    - key: "${p.key}"`);
+          if (p.description) lines.push(`      description: "${p.description}"`);
+          lines.push(`      required: ${p.required}`);
+          if (p.default) lines.push(`      default: "${p.default}"`);
+        });
       }
     }
   }
