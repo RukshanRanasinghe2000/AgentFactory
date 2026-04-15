@@ -1,3 +1,10 @@
+export interface QueryParam {
+  key: string;
+  description: string;
+  required: boolean;
+  default?: string;
+}
+
 export interface AgentTool {
   name: string;
   transport: {
@@ -17,6 +24,7 @@ export interface AgentTool {
   tool_filter?: {
     allow: string[];
   };
+  query_params?: QueryParam[];
 }
 
 export interface AgentSkill {
