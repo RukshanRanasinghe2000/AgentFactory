@@ -8,6 +8,7 @@ const links = [
   { href: "/", label: "Home" },
   { href: "/builder", label: "Builder" },
   { href: "/agents", label: "Agents" },
+  { href: "/docs", label: "Docs" },
 ];
 
 export default function Navbar() {
@@ -17,7 +18,7 @@ export default function Navbar() {
     <nav className="glass sticky top-0 z-50 px-6 py-4 flex items-center justify-between">
       <Link href="/" className="flex items-center gap-2 font-bold text-lg text-white">
         <Cpu className="text-violet-400" size={22} />
-        <span>Agent<span className="text-violet-400">Factory</span></span>
+        <span>Agent<span className="text-violet-400">Factory</span><sup className="text-[9px] text-violet-400 font-semibold ml-0.5 tracking-wide">BETA</sup></span>
       </Link>
 
       <div className="flex items-center gap-1">
