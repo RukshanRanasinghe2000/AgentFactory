@@ -95,7 +95,7 @@ async def run_agent(
         return await _run_openai_compatible(spec, user_input, history)
 
 
-# ── OpenAI-compatible (OpenAI, Groq, Ollama, custom) ─────────────────────────
+# OpenAI-compatible (OpenAI, Groq, Ollama, custom) 
 
 async def _run_openai_compatible(
     spec: AgentSpec,
@@ -195,7 +195,7 @@ async def _run_openai_compatible(
     )
 
 
-# ── Anthropic ─────────────────────────────────────────────────────────────────
+# ── Anthropic 
 
 async def _run_anthropic(
     spec: AgentSpec,

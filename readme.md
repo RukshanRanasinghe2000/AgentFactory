@@ -41,9 +41,11 @@ graph TD
         C1 --> D1[OutputSchemaBuilder]
         C1 --> D2[SkillsEditor]
         C1 --> D3[PreviewPopup]
+        C4 --> D4[QueryParamsEditor]
         C5 --> E[buildYaml]
         E -->|Export| F[agent.md]
-        C --> TP[TestAgentPanel]
+        C --> TC[Test Credentials Step]
+        TC -->|API keys injected| TP[TestAgentPanel]
     end
 
     subgraph AI["AI Refinement Pipeline"]
@@ -68,8 +70,12 @@ graph TD
         BE --> EX[executor.py]
         EX --> LLM[LLM Provider]
         EX --> TR[tool_runner.py]
-        TR --> MCP[MCP Tools]
+        TR -->|resolve URL placeholders| MCP[MCP Tools]
+        TR -->|extract params from chat| MCP
         BE --> PS[spec_parser.py]
+        BE --> IF[interfaces.py]
+        IF --> WS[WebSocket webchat]
+        IF --> WH[Webhook handler]
         PS --> F
     end
 ```
@@ -101,23 +107,23 @@ Both prompts are loaded at runtime from `factory_agent/system_agent.md` — no h
 ### Builder — Core Tab
 Fill in the complete identity and behaviour of your agent:
 
-| Field | Purpose |
-|---|---|
-| Agent Name | Human-readable name for the agent |
-| Version | Semantic version (e.g. `1.0.0`) |
-| License | Open source license (e.g. `MIT`, `Apache-2.0`) |
-| Author | Creator name and email |
-| Provider Name / URL | Organisation behind the agent |
-| Description | What the agent does — supports multiline block scalar in output |
-| Role | The agent's persona and purpose |
-| Instructions | Step-by-step behaviour rules — full markdown supported |
-| Output Format | `markdown`, `json`, `plain`, or `html` |
-| Output Schema | Structure the agent must return (see below) |
-| Execution Mode | `sequential` or `agentic` (loop) |
-| Max Iterations | Maximum reasoning steps |
-| Memory Type | `none`, `short-term`, or `long-term` |
-| Enforcement | Hard rules the agent must always follow |
-| Skills | Local folder paths or remote URLs for skill modules |
+| Field               | Purpose                                                         |
+| ---------------------| -----------------------------------------------------------------|
+| Agent Name          | Human-readable name for the agent                               |
+| Version             | Semantic version (e.g. `1.0.0`)                                 |
+| License             | Open source license (e.g. `MIT`, `Apache-2.0`)                  |
+| Author              | Creator name and email                                          |
+| Provider Name / URL | Organisation behind the agent                                   |
+| Description         | What the agent does — supports multiline block scalar in output |
+| Role                | The agent's persona and purpose                                 |
+| Instructions        | Step-by-step behaviour rules — full markdown supported          |
+| Output Format       | `markdown`, `json`, `plain`, or `html`                          |
+| Output Schema       | Structure the agent must return (see below)                     |
+| Execution Mode      | `sequential` or `agentic` (loop)                                |
+| Max Iterations      | Maximum reasoning steps                                         |
+| Memory Type         | `none`, `short-term`, or `long-term`                            |
+| Enforcement         | Hard rules the agent must always follow                         |
+| Skills              | Local folder paths or remote URLs for skill modules             |
 
 #### Output Schema Builder
 - **JSON format** — free-form JSON template editor with:
@@ -315,21 +321,21 @@ API runs at [http://localhost:8000](http://localhost:8000) — interactive docs 
 
 ### `frontend/.env`
 
-| Variable | Purpose |
-|---|---|
+| Variable         | Purpose                                                                    |
+| ------------------| ----------------------------------------------------------------------------|
 | `MODEL_PROVIDER` | LLM provider for spec generation (`groq`, `openai`, `anthropic`, `ollama`) |
-| `MODEL_NAME` | Model name (e.g. `llama-3.3-70b-versatile`) |
-| `MODEL_BASE_URL` | Optional base URL override |
-| `MODEL_API_KEY` | API key for the spec generation model |
+| `MODEL_NAME`     | Model name (e.g. `llama-3.3-70b-versatile`)                                |
+| `MODEL_BASE_URL` | Optional base URL override                                                 |
+| `MODEL_API_KEY`  | API key for the spec generation model                                      |
 
 ### `backend/.env`
 
-| Variable | Purpose |
-|---|---|
-| `GROQ_API_KEY` | Used when agent spec sets `provider: groq` |
-| `OPENAI_API_KEY` | Used when agent spec sets `provider: openai` |
+| Variable            | Purpose                                         |
+| ---------------------| -------------------------------------------------|
+| `GROQ_API_KEY`      | Used when agent spec sets `provider: groq`      |
+| `OPENAI_API_KEY`    | Used when agent spec sets `provider: openai`    |
 | `ANTHROPIC_API_KEY` | Used when agent spec sets `provider: anthropic` |
-| `GOOGLE_API_KEY` | Used when agent spec sets `provider: google` |
+| `GOOGLE_API_KEY`    | Used when agent spec sets `provider: google`    |
 
 ---
 

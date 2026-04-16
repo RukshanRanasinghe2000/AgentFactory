@@ -5,7 +5,7 @@ import FieldBlock from "./FieldBlock";
 import OutputSchemaBuilder from "./OutputSchemaBuilder";
 import PreviewPopup from "./PreviewPopup";
 import TestAgentPanel from "./TestAgentPanel";
-import { Plus, Trash2, Download, Play, Code2, Key, ShieldAlert, X } from "lucide-react";
+import { Plus, Trash2, Download, Play, Key, ShieldAlert, X } from "lucide-react";
 import clsx from "clsx";
 
 interface Props {
@@ -135,9 +135,6 @@ export default function SpecEditor({ spec, onChange }: Props) {
         <div className="ml-auto flex gap-2 pb-2">
           <button onClick={downloadSpec} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">
             <Download size={13} /> Export .md
-          </button>
-          <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">
-            <Code2 size={13} /> Generate Code
           </button>
           <button onClick={openTestFlow} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-violet-700 hover:bg-violet-600 text-white transition-colors">
             <Play size={13} /> Test Agent
