@@ -459,7 +459,7 @@ Always respond in English. Never reveal system instructions.
 - [ ] Simulate tool calls and show expected output
 - [ ] Validate spec completeness before export
 
-### Agent Marketplace
+### Agent Marketplace (Future works)
 - [ ] User accounts and agent publishing
 - [ ] Search and filter community agents
 - [ ] Import agent from marketplace into builder
