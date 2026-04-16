@@ -5,6 +5,7 @@ Handles OpenAI-compatible, Anthropic, and Google providers.
 """
 import json
 import os
+import re
 from typing import Any
 import openai
 import anthropic
@@ -69,12 +70,14 @@ def _get_mcp_tools(spec: AgentSpec) -> list[AgentTool]:
             continue
         transport_data = t.get("transport", {})
         auth_data = t.get("authentication")
+        qp_data = t.get("query_params", [])
         tools.append(AgentTool(
             name=t.get("name", ""),
             transport=ToolTransport(**transport_data),
             authentication=ToolAuth(**auth_data) if auth_data else None,
             env=t.get("env"),
             tool_filter=t.get("tool_filter"),
+            query_params=qp_data if qp_data else None,
         ))
     return tools
 
@@ -122,7 +125,12 @@ async def _run_openai_compatible(
 
     tool_defs = get_tool_definitions(spec.tools)
     mcp_tools = _get_mcp_tools(spec)
-    tool_map = {t.name: t for t in mcp_tools}
+    # Map both original name and sanitized name → tool
+    tool_map = {}
+    for t in mcp_tools:
+        tool_map[t.name] = t
+        safe = re.sub(r"[^a-zA-Z0-9_-]", "_", t.name).strip("_") or "tool"
+        tool_map[safe] = t
 
     response_format = {"type": "json_object"} if spec.output_format == "json" else None
     all_tool_calls: list[dict] = []

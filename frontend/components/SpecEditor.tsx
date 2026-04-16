@@ -1,11 +1,11 @@
 "use client";
 import { useState } from "react";
-import type { AgentSpec, AgentTool, AgentInterface, AgentSkill } from "@/lib/types";
+import type { AgentSpec, AgentTool, AgentInterface, AgentSkill, QueryParam } from "@/lib/types";
 import FieldBlock from "./FieldBlock";
 import OutputSchemaBuilder from "./OutputSchemaBuilder";
 import PreviewPopup from "./PreviewPopup";
 import TestAgentPanel from "./TestAgentPanel";
-import { Plus, Trash2, Download, Play, Code2 } from "lucide-react";
+import { Plus, Trash2, Download, Play, Code2, Key, ShieldAlert, X } from "lucide-react";
 import clsx from "clsx";
 
 interface Props {
@@ -19,7 +19,78 @@ export default function SpecEditor({ spec, onChange }: Props) {
   const [tab, setTab] = useState<Tab>("core");
   const [popup, setPopup] = useState<{ label: string; content: string } | null>(null);
   const [showTest, setShowTest] = useState(false);
+  const [confirmStep, setConfirmStep] = useState<"groq" | "credentials">("groq");
   const [showGroqConfirm, setShowGroqConfirm] = useState(false);
+  // Temporary test credentials — state only, wiped on close
+  const [toolKeys, setToolKeys] = useState<Record<string, string>>({});
+  // Per-tool query param mode: "extract" (LLM extracts from chat) | "manual" (user enters)
+  const [queryModes, setQueryModes] = useState<Record<string, "extract" | "manual">>({});
+  // Manual query param values — keyed as "toolName.paramKey"
+  const [manualQueryValues, setManualQueryValues] = useState<Record<string, string>>({});
+
+  // Tools that need credentials at test time
+  const toolsNeedingInput = spec.tools.filter(
+    (t) => (t.authentication && t.authentication.type !== "none") ||
+            (t.query_params && t.query_params.length > 0)
+  );
+
+  function openTestFlow() {
+    setToolKeys({});
+    setQueryModes({});
+    setManualQueryValues({});
+    setConfirmStep("groq");
+    setShowGroqConfirm(true);
+  }
+
+  function handleGroqConfirmed() {
+    if (toolsNeedingInput.length > 0) {
+      setConfirmStep("credentials");
+    } else {
+      setShowGroqConfirm(false);
+      setShowTest(true);
+    }
+  }
+
+  function handleCredentialsConfirmed() {
+    setShowGroqConfirm(false);
+    setShowTest(true);
+  }
+
+  function handleTestClose() {
+    setShowTest(false);
+    setToolKeys({});
+    setQueryModes({});
+    setManualQueryValues({});
+  }
+
+  function buildTestSpec(): AgentSpec {
+    const tools = spec.tools.map((t) => {
+      let updated = { ...t };
+      // Inject API key
+      const key = toolKeys[t.name];
+      if (key && t.authentication) {
+        updated = { ...updated, authentication: { ...t.authentication, api_key: key, token: key } };
+      }
+      // If manual mode, append query params directly to URL
+      if (queryModes[t.name] === "manual" && t.query_params?.length && updated.transport.url) {
+        const qs = t.query_params
+          .map((p) => {
+            const val = manualQueryValues[`${t.name}.${p.key}`] ?? p.default ?? "";
+            return val ? `${encodeURIComponent(p.key)}=${encodeURIComponent(val)}` : null;
+          })
+          .filter(Boolean).join("&");
+        if (qs) {
+          const base = updated.transport.url.replace(/[?&]$/, "").split("?")[0];
+          updated = { ...updated, transport: { ...updated.transport, url: `${base}?${qs}` } };
+        }
+      }
+      return updated;
+    });
+    return {
+      ...spec, tools,
+      model: { ...spec.model, provider: "groq", name: "llama-3.3-70b-versatile", base_url: "https://api.groq.com/openai/v1", authentication: { type: "api-key", api_key: "" } },
+    };
+  }
 
   function set<K extends keyof AgentSpec>(key: K, value: AgentSpec[K]) {
     onChange({ ...spec, [key]: value });
@@ -68,54 +139,37 @@ export default function SpecEditor({ spec, onChange }: Props) {
           <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-slate-800 hover:bg-slate-700 text-slate-300 transition-colors">
             <Code2 size={13} /> Generate Code
           </button>
-          <button onClick={() => setShowGroqConfirm(true)} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-violet-700 hover:bg-violet-600 text-white transition-colors">
+          <button onClick={openTestFlow} className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs bg-violet-700 hover:bg-violet-600 text-white transition-colors">
             <Play size={13} /> Test Agent
           </button>
         </div>
       </div>
 
-      {/* Groq confirmation dialog */}
-      {showGroqConfirm && (
+      {/* ── Step 1: Groq notice ── */}
+      {showGroqConfirm && confirmStep === "groq" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowGroqConfirm(false)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div className="relative glass glow rounded-2xl w-full max-w-md flex flex-col shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="px-6 py-5 flex flex-col gap-4">
               <div className="flex items-start gap-3">
-                <div className="p-2 rounded-lg bg-amber-900/40 shrink-0">
-                  <Play size={16} className="text-amber-400" />
-                </div>
+                <div className="p-2 rounded-lg bg-amber-900/40 shrink-0"><Play size={16} className="text-amber-400" /></div>
                 <div>
                   <p className="text-white font-semibold text-sm">Testing Environment Notice</p>
                   <p className="text-slate-400 text-xs mt-1 leading-relaxed">
-                    The testing environment currently supports <span className="text-violet-300 font-medium">Groq only</span>.
-                    Your agent will be tested using:
+                    The testing environment currently supports <span className="text-violet-300 font-medium">Groq only</span>. Your agent will be tested using:
                   </p>
                   <div className="mt-3 glass rounded-lg px-3 py-2 flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full bg-emerald-400" />
-                    <span className="text-xs text-slate-300">
-                      <span className="text-emerald-400 font-medium">groq</span>
-                      {" · "}
-                      <span className="text-slate-200">llama-3.3-70b-versatile</span>
-                    </span>
+                    <span className="text-xs text-slate-300"><span className="text-emerald-400 font-medium">groq</span>{" · "}<span className="text-slate-200">llama-3.3-70b-versatile</span></span>
                   </div>
                   {spec.model.provider !== "groq" && (
-                    <p className="text-xs text-amber-400/80 mt-2">
-                      Your configured model (<span className="font-medium">{spec.model.provider} · {spec.model.name}</span>) will not be used during testing.
-                    </p>
+                    <p className="text-xs text-amber-400/80 mt-2">Your configured model (<span className="font-medium">{spec.model.provider} · {spec.model.name}</span>) will not be used during testing.</p>
                   )}
                 </div>
               </div>
-              <div className="flex items-center gap-3 pt-1">
-                <button
-                  onClick={() => setShowGroqConfirm(false)}
-                  className="flex-1 px-4 py-2 rounded-lg text-xs text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition-colors"
-                >
-                  Cancel
-                </button>
-                <button
-                  onClick={() => { setShowGroqConfirm(false); setShowTest(true); }}
-                  className="flex-1 px-4 py-2 rounded-lg text-xs bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors flex items-center justify-center gap-1.5"
-                >
+              <div className="flex gap-3">
+                <button onClick={() => setShowGroqConfirm(false)} className="flex-1 px-4 py-2 rounded-lg text-xs text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition-colors">Cancel</button>
+                <button onClick={handleGroqConfirmed} className="flex-1 px-4 py-2 rounded-lg text-xs bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors flex items-center justify-center gap-1.5">
                   <Play size={12} /> Continue with Groq
                 </button>
               </div>
@@ -124,21 +178,109 @@ export default function SpecEditor({ spec, onChange }: Props) {
         </div>
       )}
 
-      {/* Test Panel — always uses Groq regardless of spec model */}
+      {/* ── Step 2: Tool API keys ── */}
+      {showGroqConfirm && confirmStep === "credentials" && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowGroqConfirm(false)}>
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
+          <div className="relative glass glow rounded-2xl w-full max-w-lg flex flex-col shadow-2xl max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
+            <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <Key size={15} className="text-violet-400" />
+                <p className="text-sm font-medium text-white">Tool Credentials</p>
+              </div>
+              <button onClick={() => setShowGroqConfirm(false)} className="text-slate-500 hover:text-white transition-colors"><X size={16} /></button>
+            </div>
+
+            <div className="mx-5 mt-4 flex items-start gap-2 bg-amber-900/20 border border-amber-700/30 rounded-lg px-3 py-2.5">
+              <ShieldAlert size={13} className="text-amber-400 mt-0.5 shrink-0" />
+              <p className="text-xs text-amber-300/80 leading-relaxed">
+                Your API keys are stored <span className="font-medium text-amber-300">temporarily in memory only</span> and removed automatically when you close the test panel. They are never saved to disk or localStorage.
+              </p>
+            </div>
+
+            <div className="overflow-y-auto px-5 py-4 flex flex-col gap-4">
+              {toolsNeedingInput.map((tool) => (
+                <div key={tool.name} className="glass rounded-xl p-4 flex flex-col gap-3">
+                  <p className="text-xs font-medium text-violet-300 flex items-center gap-1.5">
+                    <span className="w-1.5 h-1.5 rounded-full bg-violet-400" />{tool.name}
+                  </p>
+
+                  {/* API key */}
+                  {tool.authentication && tool.authentication.type !== "none" && (
+                    <div className="flex flex-col gap-1.5">
+                      <label className="text-xs text-slate-400">API Key <span className="text-slate-600">({tool.authentication?.type})</span></label>
+                      <input type="password" value={toolKeys[tool.name] ?? ""}
+                        onChange={(e) => setToolKeys((p) => ({ ...p, [tool.name]: e.target.value }))}
+                        placeholder={`API key for ${tool.name}`} className="field-input text-sm" />
+                    </div>
+                  )}
+
+                  {/* Query param mode selector */}
+                  {(tool.query_params ?? []).length > 0 && (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-xs text-slate-400">Query Parameters</p>
+                      {/* Mode toggle */}
+                      <div className="flex gap-2">
+                        {(["extract", "manual"] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            onClick={() => setQueryModes((p) => ({ ...p, [tool.name]: mode }))}
+                            className={clsx(
+                              "flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors border",
+                              (queryModes[tool.name] ?? "extract") === mode
+                                ? "bg-violet-600 border-violet-500 text-white"
+                                : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white"
+                            )}
+                          >
+                            {mode === "extract" ? "🤖 Extract from chat" : "✏️ Enter manually"}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Mode description */}
+                      {(queryModes[tool.name] ?? "extract") === "extract" ? (
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          The LLM will extract param values from your chat messages automatically. Just type naturally — e.g. <span className="text-slate-300 italic">"weather in Colombo"</span>.
+                        </p>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          {(tool.query_params ?? []).map((p) => (
+                            <div key={p.key} className="flex flex-col gap-1">
+                              <label className="text-xs text-slate-400 flex items-center gap-1">
+                                {p.key}
+                                {p.required && <span className="text-red-400">*</span>}
+                                {p.description && <span className="text-slate-600">— {p.description}</span>}
+                              </label>
+                              <input
+                                type="text"
+                                value={manualQueryValues[`${tool.name}.${p.key}`] ?? p.default ?? ""}
+                                onChange={(e) => setManualQueryValues((prev) => ({ ...prev, [`${tool.name}.${p.key}`]: e.target.value }))}
+                                placeholder={p.default || p.description || p.key}
+                                className="field-input text-sm"
+                              />
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            <div className="px-5 py-4 border-t border-slate-800 flex gap-3">
+              <button onClick={() => setShowGroqConfirm(false)} className="flex-1 px-4 py-2 rounded-lg text-xs text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition-colors">Cancel</button>
+              <button onClick={handleCredentialsConfirmed} className="flex-1 px-4 py-2 rounded-lg text-xs bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors flex items-center justify-center gap-1.5">
+                <Play size={12} /> Start Testing
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Test Panel */}
       {showTest && (
-        <TestAgentPanel
-          spec={{
-            ...spec,
-            model: {
-              ...spec.model,
-              provider: "groq",
-              name: "llama-3.3-70b-versatile",
-              base_url: "https://api.groq.com/openai/v1",
-              authentication: { type: "api-key", api_key: "" },
-            },
-          }}
-          onClose={() => setShowTest(false)}
-        />
+        <TestAgentPanel spec={buildTestSpec()} onClose={handleTestClose} />
       )}
 
       {/* ── CORE TAB ── */}
@@ -502,27 +644,61 @@ function ToolsEditor({ tools, onChange }: { tools: AgentTool[]; onChange: (v: Ag
                 rows={3} placeholder={"get_file_contents\npull_request_read\npull_request_review_write"} className="field-input resize-none text-xs" />
             </FieldBlock>
 
-            {/* Env vars */}
-            <div className="md:col-span-2 flex flex-col gap-2">
-              <div className="flex items-center justify-between">
-                <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">Env Variables</p>
-                <button onClick={() => updateEnv(i, "", "")} className="text-xs text-slate-500 hover:text-violet-400 transition-colors flex items-center gap-1">
-                  <Plus size={11} /> Add
-                </button>
-              </div>
-              {Object.entries(tool.env ?? {}).map(([k, v]) => (
-                <div key={k} className="flex gap-2 items-center">
-                  <input value={k} onChange={(e) => { removeEnv(i, k); updateEnv(i, e.target.value, v); }}
-                    placeholder="KEY" className="field-input text-xs py-1 flex-1" />
-                  <input value={v} onChange={(e) => updateEnv(i, k, e.target.value)}
-                    placeholder="${env:VALUE}" className="field-input text-xs py-1 flex-1" />
-                  <button onClick={() => removeEnv(i, k)} className="text-slate-600 hover:text-red-400 transition-colors"><Trash2 size={13} /></button>
-                </div>
-              ))}
-            </div>
+            {/* Query Params */}
+            <QueryParamsEditor
+              className="md:col-span-2"
+              params={tool.query_params ?? []}
+              onChange={(params) => update(i, { query_params: params })}
+            />
+
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+// ── Query Params Editor ───────────────────────────────────────────────────────
+function QueryParamsEditor({ params, className, onChange }: {
+  params: QueryParam[];
+  className?: string;
+  onChange: (p: QueryParam[]) => void;
+}) {
+  function add() { onChange([...params, { key: "", description: "", required: false, default: "" }]); }
+  function update(i: number, patch: Partial<QueryParam>) {
+    const next = [...params]; next[i] = { ...next[i], ...patch }; onChange(next);
+  }
+  function remove(i: number) { onChange(params.filter((_, idx) => idx !== i)); }
+
+  return (
+    <div className={clsx("flex flex-col gap-2", className)}>
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-medium text-slate-400 uppercase tracking-wide">
+          Query Params
+          <span className="text-slate-600 normal-case font-normal ml-1">— values collected at test time</span>
+        </p>
+        <button onClick={add} className="text-xs text-slate-500 hover:text-violet-400 transition-colors flex items-center gap-1">
+          <Plus size={11} /> Add
+        </button>
+      </div>
+      {params.length > 0 && (
+        <div className="flex flex-col gap-2">
+          <div className="grid grid-cols-[1fr_1.5fr_auto_auto] gap-2 text-xs text-slate-600 px-1">
+            <span>Key</span><span>Description / hint</span><span>Req</span><span></span>
+          </div>
+          {params.map((p, i) => (
+            <div key={i} className="grid grid-cols-[1fr_1.5fr_auto_auto] gap-2 items-center">
+              <input value={p.key} onChange={(e) => update(i, { key: e.target.value })}
+                placeholder="e.g. location" className="field-input text-xs py-1" />
+              <input value={p.description} onChange={(e) => update(i, { description: e.target.value })}
+                placeholder="e.g. City name" className="field-input text-xs py-1" />
+              <input type="checkbox" checked={p.required} onChange={(e) => update(i, { required: e.target.checked })}
+                className="accent-violet-500 w-4 h-4 cursor-pointer" />
+              <button onClick={() => remove(i)} className="text-slate-600 hover:text-red-400 transition-colors"><Trash2 size={13} /></button>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
@@ -691,7 +867,19 @@ function buildYaml(spec: AgentSpec): string {
       lines.push(`  - name: "${tool.name}"`);
       lines.push("    transport:");
       lines.push(`      type: "${tool.transport.type}"`);
-      if (tool.transport.type === "http" && tool.transport.url) lines.push(`      url: "${tool.transport.url}"`);
+      if (tool.transport.type === "http" && tool.transport.url) {
+        // Build full URL with query_params appended as {KEY} placeholders
+        let fullUrl = tool.transport.url;
+        if (tool.query_params && tool.query_params.length > 0) {
+          const qs = tool.query_params
+            .map((p) => `${p.key}={${p.key.toUpperCase()}}`)
+            .join("&");
+          fullUrl = fullUrl.endsWith("?") || fullUrl.includes("?")
+            ? `${fullUrl.replace(/\?$/, "")}?${qs}`
+            : `${fullUrl}?${qs}`;
+        }
+        lines.push(`      url: "${fullUrl}"`);
+      }
       if (tool.transport.type === "stdio") {
         if (tool.transport.command) lines.push(`      command: "${tool.transport.command}"`);
         if (tool.transport.args && tool.transport.args.length > 0) {
@@ -715,6 +903,15 @@ function buildYaml(spec: AgentSpec): string {
         lines.push("    tool_filter:");
         lines.push("      allow:");
         tool.tool_filter.allow.forEach((a) => lines.push(`      - "${a}"`));
+      }
+      if (tool.query_params && tool.query_params.length > 0) {
+        lines.push("    query_params:");
+        tool.query_params.forEach((p) => {
+          lines.push(`    - key: "${p.key}"`);
+          if (p.description) lines.push(`      description: "${p.description}"`);
+          lines.push(`      required: ${p.required}`);
+          if (p.default) lines.push(`      default: "${p.default}"`);
+        });
       }
     }
   }
