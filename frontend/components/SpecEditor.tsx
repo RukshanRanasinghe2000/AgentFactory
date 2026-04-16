@@ -23,20 +23,21 @@ export default function SpecEditor({ spec, onChange }: Props) {
   const [showGroqConfirm, setShowGroqConfirm] = useState(false);
   // Temporary test credentials — state only, wiped on close
   const [toolKeys, setToolKeys] = useState<Record<string, string>>({});
-  const [queryValues, setQueryValues] = useState<Record<string, string>>({});
-  const [envValues, setEnvValues] = useState<Record<string, string>>({});
+  // Per-tool query param mode: "extract" (LLM extracts from chat) | "manual" (user enters)
+  const [queryModes, setQueryModes] = useState<Record<string, "extract" | "manual">>({});
+  // Manual query param values — keyed as "toolName.paramKey"
+  const [manualQueryValues, setManualQueryValues] = useState<Record<string, string>>({});
 
-  // Tools that need credentials, query params, or env vars at test time
+  // Tools that need credentials at test time
   const toolsNeedingInput = spec.tools.filter(
     (t) => (t.authentication && t.authentication.type !== "none") ||
-            (t.query_params && t.query_params.length > 0) ||
-            (t.env && Object.keys(t.env).length > 0)
+            (t.query_params && t.query_params.length > 0)
   );
 
   function openTestFlow() {
     setToolKeys({});
-    setQueryValues({});
-    setEnvValues({});
+    setQueryModes({});
+    setManualQueryValues({});
     setConfirmStep("groq");
     setShowGroqConfirm(true);
   }
@@ -58,8 +59,8 @@ export default function SpecEditor({ spec, onChange }: Props) {
   function handleTestClose() {
     setShowTest(false);
     setToolKeys({});
-    setQueryValues({});
-    setEnvValues({});
+    setQueryModes({});
+    setManualQueryValues({});
   }
 
   function buildTestSpec(): AgentSpec {
@@ -70,26 +71,17 @@ export default function SpecEditor({ spec, onChange }: Props) {
       if (key && t.authentication) {
         updated = { ...updated, authentication: { ...t.authentication, api_key: key, token: key } };
       }
-      // Inject env var overrides
-      const envOverrides: Record<string, string> = {};
-      Object.keys(t.env ?? {}).forEach((k) => {
-        const v = envValues[`${t.name}.${k}`];
-        if (v) envOverrides[k] = v;
-      });
-      if (Object.keys(envOverrides).length > 0) {
-        updated = { ...updated, env: { ...updated.env, ...envOverrides } };
-      }
-      // Append query params to URL
-      if (t.query_params?.length && updated.transport.url) {
+      // If manual mode, append query params directly to URL
+      if (queryModes[t.name] === "manual" && t.query_params?.length && updated.transport.url) {
         const qs = t.query_params
           .map((p) => {
-            const val = queryValues[`${t.name}.${p.key}`] ?? p.default ?? "";
+            const val = manualQueryValues[`${t.name}.${p.key}`] ?? p.default ?? "";
             return val ? `${encodeURIComponent(p.key)}=${encodeURIComponent(val)}` : null;
           })
           .filter(Boolean).join("&");
         if (qs) {
-          const base = updated.transport.url;
-          updated = { ...updated, transport: { ...updated.transport, url: base.includes("?") ? `${base}&${qs}` : `${base}?${qs}` } };
+          const base = updated.transport.url.replace(/[?&]$/, "").split("?")[0];
+          updated = { ...updated, transport: { ...updated.transport, url: `${base}?${qs}` } };
         }
       }
       return updated;
@@ -186,12 +178,11 @@ export default function SpecEditor({ spec, onChange }: Props) {
         </div>
       )}
 
-      {/* ── Step 2: Tool credentials + query params ── */}
+      {/* ── Step 2: Tool API keys ── */}
       {showGroqConfirm && confirmStep === "credentials" && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={() => setShowGroqConfirm(false)}>
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
           <div className="relative glass glow rounded-2xl w-full max-w-lg flex flex-col shadow-2xl max-h-[85vh]" onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
             <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
               <div className="flex items-center gap-2">
                 <Key size={15} className="text-violet-400" />
@@ -200,7 +191,6 @@ export default function SpecEditor({ spec, onChange }: Props) {
               <button onClick={() => setShowGroqConfirm(false)} className="text-slate-500 hover:text-white transition-colors"><X size={16} /></button>
             </div>
 
-            {/* Security notice */}
             <div className="mx-5 mt-4 flex items-start gap-2 bg-amber-900/20 border border-amber-700/30 rounded-lg px-3 py-2.5">
               <ShieldAlert size={13} className="text-amber-400 mt-0.5 shrink-0" />
               <p className="text-xs text-amber-300/80 leading-relaxed">
@@ -208,7 +198,6 @@ export default function SpecEditor({ spec, onChange }: Props) {
               </p>
             </div>
 
-            {/* Tool cards */}
             <div className="overflow-y-auto px-5 py-4 flex flex-col gap-4">
               {toolsNeedingInput.map((tool) => (
                 <div key={tool.name} className="glass rounded-xl p-4 flex flex-col gap-3">
@@ -219,46 +208,66 @@ export default function SpecEditor({ spec, onChange }: Props) {
                   {/* API key */}
                   {tool.authentication && tool.authentication.type !== "none" && (
                     <div className="flex flex-col gap-1.5">
-                      <label className="text-xs text-slate-400">API Key <span className="text-slate-600">({tool.authentication.type})</span></label>
+                      <label className="text-xs text-slate-400">API Key <span className="text-slate-600">({tool.authentication?.type})</span></label>
                       <input type="password" value={toolKeys[tool.name] ?? ""}
                         onChange={(e) => setToolKeys((p) => ({ ...p, [tool.name]: e.target.value }))}
                         placeholder={`API key for ${tool.name}`} className="field-input text-sm" />
                     </div>
                   )}
 
-                  {/* Query params */}
-                  {(tool.query_params ?? []).map((p) => (
-                    <div key={p.key} className="flex flex-col gap-1.5">
-                      <label className="text-xs text-slate-400 flex items-center gap-1">
-                        {p.key}{p.required && <span className="text-red-400">*</span>}
-                        {p.description && <span className="text-slate-600">— {p.description}</span>}
-                      </label>
-                      <input type="text" value={queryValues[`${tool.name}.${p.key}`] ?? p.default ?? ""}
-                        onChange={(e) => setQueryValues((prev) => ({ ...prev, [`${tool.name}.${p.key}`]: e.target.value }))}
-                        placeholder={p.default || p.description || p.key} className="field-input text-sm" />
-                    </div>
-                  ))}
-
-                  {/* Env vars */}
-                  {Object.keys(tool.env ?? {}).length > 0 && (
+                  {/* Query param mode selector */}
+                  {(tool.query_params ?? []).length > 0 && (
                     <div className="flex flex-col gap-2">
-                      <p className="text-xs text-slate-500 uppercase tracking-wide">Env Variables</p>
-                      {Object.entries(tool.env ?? {}).map(([k, defaultVal]) => (
-                        <div key={k} className="flex flex-col gap-1">
-                          <label className="text-xs text-slate-400">{k}</label>
-                          <input type="text"
-                            value={envValues[`${tool.name}.${k}`] ?? defaultVal ?? ""}
-                            onChange={(e) => setEnvValues((prev) => ({ ...prev, [`${tool.name}.${k}`]: e.target.value }))}
-                            placeholder={defaultVal || k} className="field-input text-sm" />
+                      <p className="text-xs text-slate-400">Query Parameters</p>
+                      {/* Mode toggle */}
+                      <div className="flex gap-2">
+                        {(["extract", "manual"] as const).map((mode) => (
+                          <button
+                            key={mode}
+                            onClick={() => setQueryModes((p) => ({ ...p, [tool.name]: mode }))}
+                            className={clsx(
+                              "flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors border",
+                              (queryModes[tool.name] ?? "extract") === mode
+                                ? "bg-violet-600 border-violet-500 text-white"
+                                : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white"
+                            )}
+                          >
+                            {mode === "extract" ? "🤖 Extract from chat" : "✏️ Enter manually"}
+                          </button>
+                        ))}
+                      </div>
+
+                      {/* Mode description */}
+                      {(queryModes[tool.name] ?? "extract") === "extract" ? (
+                        <p className="text-xs text-slate-500 leading-relaxed">
+                          The LLM will extract param values from your chat messages automatically. Just type naturally — e.g. <span className="text-slate-300 italic">"weather in Colombo"</span>.
+                        </p>
+                      ) : (
+                        <div className="flex flex-col gap-2">
+                          {(tool.query_params ?? []).map((p) => (
+                            <div key={p.key} className="flex flex-col gap-1">
+                              <label className="text-xs text-slate-400 flex items-center gap-1">
+                                {p.key}
+                                {p.required && <span className="text-red-400">*</span>}
+                                {p.description && <span className="text-slate-600">— {p.description}</span>}
+                              </label>
+                              <input
+                                type="text"
+                                value={manualQueryValues[`${tool.name}.${p.key}`] ?? p.default ?? ""}
+                                onChange={(e) => setManualQueryValues((prev) => ({ ...prev, [`${tool.name}.${p.key}`]: e.target.value }))}
+                                placeholder={p.default || p.description || p.key}
+                                className="field-input text-sm"
+                              />
+                            </div>
+                          ))}
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
                 </div>
               ))}
             </div>
 
-            {/* Footer */}
             <div className="px-5 py-4 border-t border-slate-800 flex gap-3">
               <button onClick={() => setShowGroqConfirm(false)} className="flex-1 px-4 py-2 rounded-lg text-xs text-slate-400 hover:text-white bg-slate-800 hover:bg-slate-700 transition-colors">Cancel</button>
               <button onClick={handleCredentialsConfirmed} className="flex-1 px-4 py-2 rounded-lg text-xs bg-violet-600 hover:bg-violet-500 text-white font-medium transition-colors flex items-center justify-center gap-1.5">

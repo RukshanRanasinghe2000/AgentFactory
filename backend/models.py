@@ -18,12 +18,20 @@ class ToolAuth(BaseModel):
     password: Optional[str] = None
 
 
+class QueryParam(BaseModel):
+    key: str
+    description: str = ""
+    required: bool = False
+    default: Optional[str] = None
+
+
 class AgentTool(BaseModel):
     name: str
     transport: ToolTransport
     authentication: Optional[ToolAuth] = None
     env: Optional[Dict[str, str]] = None
     tool_filter: Optional[Dict[str, List[str]]] = None
+    query_params: Optional[List[QueryParam]] = None
 
 
 class AgentInterface(BaseModel):

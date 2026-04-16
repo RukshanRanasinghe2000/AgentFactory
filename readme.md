@@ -188,6 +188,31 @@ Add MCP (Model Context Protocol) tools the agent can call:
 - The test panel overrides the model to Groq without modifying the user's spec
 - Full conversation history is maintained within the session
 - Responses are rendered with proper formatting
+- Tools with authentication show a credentials popup — API keys are stored in memory only and wiped on close
+
+#### Tool Query Params — Natural Language Extraction
+
+Query param values are extracted automatically from the user's chat message by the LLM, then substituted into the tool URL at runtime. No manual input required.
+
+**Works well for:**
+- REST APIs with query params (e.g. OpenWeatherMap) — the LLM extracts values from natural language and the backend substitutes them into the URL
+- Any HTTP tool where the user's intent clearly contains the param values (city name, search query, date, language, etc.)
+- Tools with descriptive `query_params` definitions — the better the description, the more reliably the LLM extracts the right value
+
+**Limitations:**
+
+| Scenario | Support |
+|---|---|
+| REST HTTP tools with `{PLACEHOLDER}` in URL | ✅ Full support |
+| REST HTTP tools with `query_params` defined | ✅ Full support |
+| MCP JSON-RPC tools (stdio or HTTP `/mcp/`) | ⚠️ Partial — query params are passed as `arguments` in the JSON-RPC payload, not appended to the URL |
+| Params ambiguous in the user's message | ⚠️ Depends on LLM quality — `units=metric` won't be extracted unless the user mentions it |
+| Required params the user never mentions | ❌ The LLM may leave them empty or hallucinate a value |
+| Non-HTTP tools (stdio) | ❌ Query params don't apply — stdio tools use stdin/stdout, not URLs |
+
+The key dependency is that the LLM must be able to infer the param value from the user's message. If a required param has no signal in the message (e.g. `appid` for an API key), it won't be extracted — which is why API keys are still collected in the popup separately.
+
+For agents where params are always predictable from natural language (location, search term, date, language), this works reliably. For agents with technical params that users wouldn't naturally mention, use a `default` value in the `query_params` definition or rely on the agent asking a follow-up question.
 
 ### Agent Library (`/agents`)
 - Browse a collection of pre-built agent cards
