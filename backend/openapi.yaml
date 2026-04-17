@@ -1,188 +1,560 @@
 openapi: 3.0.1
 info:
-  title: WSO2 Developer Platform Reading List
-  description: This is a sample service that manages a list of reading items.
+  title: AgentFactory Execution Engine
+  description: Reads .md agent specs and runs them against LLM providers. Supports OpenAI, Groq, Anthropic, and Ollama.
   contact: {}
-  version: "1.0"
+  version: "0.1.0"
 servers:
-- url: //localhost:8080/api/v1/reading-list
+  - url: http://localhost:8080
+tags:
+  - name: health
+    description: Service health check
+  - name: run
+    description: Execute agents from spec objects or .md files
+  - name: agents
+    description: List and parse agent spec files
+  - name: webhook
+    description: HTTP webhook triggers for agents
 paths:
-  /books:
-    get:
-      tags:
-      - books
-      summary: This is a test 1234565
-      responses:
-        "200":
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: '#/components/schemas/models.Book'
-    post:
-      tags:
-      - books
-      summary: Add a new book to the reading list
-      requestBody:
-        description: New book details
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/models.Book'
-        required: true
-      responses:
-        "201":
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/models.Book'
-        "400":
-          description: invalid book details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/utils.ErrorResponse'
-        "409":
-          description: book already exists
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/utils.ErrorResponse'
-      x-codegen-request-body-name: request
-  /books/{id}:
-    get:
-      tags:
-      - books
-      summary: Get reading list book by id
-      security:
-        - default:
-            - read:books 
-      parameters:
-      - name: id
-        in: path
-        description: Book ID
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/models.Book'
-        "404":
-          description: book not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/utils.ErrorResponse'
-    put:
-      tags:
-      - books
-      summary: Update a reading list book by id
-      parameters:
-      - name: id
-        in: path
-        description: Book ID
-        required: true
-        schema:
-          type: string
-      requestBody:
-        description: Updated book details
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/models.Book'
-        required: true
-      responses:
-        "200":
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/models.Book'
-        "400":
-          description: invalid book details
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/utils.ErrorResponse'
-        "404":
-          description: book not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/utils.ErrorResponse'
-      x-codegen-request-body-name: request
-    delete:
-      tags:
-      - books
-      summary: Delete a reading list book by id
-      parameters:
-      - name: id
-        in: path
-        description: Book ID
-        required: true
-        schema:
-          type: string
-      responses:
-        "200":
-          description: successful operation
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/models.Book'
-        "404":
-          description: book not found
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/utils.ErrorResponse'
-components:
-  securitySchemes:
-    default:
-      type: oauth2
-      flows:
-        implicit:
-          authorizationUrl: https://test.com
-          scopes: 
-            read:books: Grants read access
-  schemas:
-    models.Book:
-      type: object
-      properties:
-        author:
-          type: string
-          example: J. R. R. Tolkien
-        id:
-          type: string
-          example: fe2594d0-ccea-42a2-97ac-0487458b5642
-        status:
-          type: object
-          example: to_read
-          allOf:
-          - $ref: '#/components/schemas/models.ReadStatus'
-        title:
-          type: string
-          example: The Lord of the Rings
-    models.ReadStatus:
-      type: string
-      enum:
-      - to_read
-      - reading
-      - read
-      x-enum-varnames:
-      - ReadStatusToRead
-      - ReadStatusReading
-      - ReadStatusRead
-    utils.ErrorResponse:
-      type: object
-      properties:
-        message:
-          type: string
-          example: error message
 
+  /:
+    get:
+      tags: [health]
+      summary: Health check
+      operationId: root
+      responses:
+        "200":
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HealthResponse'
+
+  /run:
+    post:
+      tags: [run]
+      summary: Run agent from spec object
+      description: Execute an agent using a pre-parsed AgentSpec JSON object.
+      operationId: runFromSpec
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunRequest'
+      responses:
+        "200":
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+        "500":
+          description: Execution error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /run/file:
+    post:
+      tags: [run]
+      summary: Run agent from .md file path
+      description: Execute an agent by reading a .md spec file from disk.
+      operationId: runFromFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunFileRequest'
+      responses:
+        "200":
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+        "404":
+          description: File not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "422":
+          description: Spec parse error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Execution error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /run/upload:
+    post:
+      tags: [run]
+      summary: Upload and run .md spec
+      description: Upload a .md spec file and execute it immediately.
+      operationId: runUploadedSpec
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The .md agent spec file
+                user_input:
+                  type: string
+                  default: Hello
+      responses:
+        "200":
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+        "400":
+          description: Invalid file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "422":
+          description: Spec parse error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Execution error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /run/{agent_name}:
+    post:
+      tags: [run]
+      summary: Run named agent
+      description: Run a named agent from the factory_agent/ directory.
+      operationId: runNamedAgent
+      parameters:
+        - name: agent_name
+          in: path
+          required: true
+          description: Agent file name without .md extension
+          schema:
+            type: string
+            example: tune_agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NamedRunRequest'
+      responses:
+        "200":
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+        "404":
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Execution error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /parse:
+    post:
+      tags: [agents]
+      summary: Parse .md spec file
+      description: Parse a .md spec file and return the structured spec without executing it.
+      operationId: parseSpecFile
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The .md agent spec file to parse
+      responses:
+        "200":
+          description: Parsed spec
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  spec:
+                    type: object
+        "400":
+          description: Invalid file
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "422":
+          description: Parse error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /agents:
+    get:
+      tags: [agents]
+      summary: List available agents
+      description: List all .md agent specs in the factory_agent/ directory.
+      operationId: listAgents
+      responses:
+        "200":
+          description: List of agents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/AgentSummary'
+
+  /webhook/{agent_name}:
+    post:
+      tags: [webhook]
+      summary: Webhook trigger for named agent
+      description: >
+        Trigger a named agent via HTTP webhook. The JSON payload is interpolated
+        into the agent prompt template using ${http:payload.field} syntax.
+        Signature verified via X-Hub-Signature-256 or X-Signature header.
+      operationId: webhookNamed
+      parameters:
+        - name: agent_name
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: X-Hub-Signature-256
+          in: header
+          required: false
+          schema:
+            type: string
+          description: HMAC-SHA256 signature (sha256=<hex>)
+        - name: X-Signature
+          in: header
+          required: false
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Any JSON payload interpolated into the agent prompt
+      responses:
+        "200":
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+        "400":
+          description: Invalid JSON body
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Signature verification failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "404":
+          description: Agent not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Execution error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /webhook:
+    post:
+      tags: [webhook]
+      summary: Webhook trigger with inline spec
+      description: Trigger an agent with an inline spec and payload in the request body.
+      operationId: webhookInline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [spec, payload]
+              properties:
+                spec:
+                  $ref: '#/components/schemas/AgentSpec'
+                payload:
+                  type: object
+                  description: Webhook payload passed to the agent
+      responses:
+        "200":
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+        "401":
+          description: Signature verification failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "422":
+          description: Parse error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        "500":
+          description: Execution error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+
+    HealthResponse:
+      type: object
+      properties:
+        status:
+          type: string
+          example: running
+        service:
+          type: string
+          example: AgentFactory Execution Engine
+        version:
+          type: string
+          example: 0.1.0
+
+    ChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant, system]
+          example: user
+        content:
+          type: string
+          example: What is the weather in Colombo?
+
+    AgentModel:
+      type: object
+      required: [provider, name]
+      properties:
+        provider:
+          type: string
+          example: groq
+        name:
+          type: string
+          example: llama-3.3-70b-versatile
+        temperature:
+          type: number
+          default: 0.7
+          example: 0.7
+        base_url:
+          type: string
+          nullable: true
+          example: https://api.groq.com/openai/v1
+        authentication:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [api-key, bearer, none]
+              example: api-key
+            api_key:
+              type: string
+              nullable: true
+              example: "${env:GROQ_API_KEY}"
+
+    AgentSpec:
+      type: object
+      required: [model]
+      properties:
+        name:
+          type: string
+          example: Weather Forecast Agent
+        description:
+          type: string
+          example: Fetches weather data for a given city
+        version:
+          type: string
+          example: 0.1.0
+        max_iterations:
+          type: integer
+          default: 5
+          example: 5
+        execution_mode:
+          type: string
+          enum: [sequential, agentic]
+          default: sequential
+          example: agentic
+        model:
+          $ref: '#/components/schemas/AgentModel'
+        role:
+          type: string
+          example: You are a helpful weather assistant.
+        instructions:
+          type: string
+          example: "1. Get the city from the user\n2. Call the weather tool\n3. Return the result"
+        output_format:
+          type: string
+          enum: [json, markdown, plain, html]
+          default: json
+          example: json
+        json_output_template:
+          type: string
+          nullable: true
+          example: '{"city": "<city name>", "temperature": 0, "condition": "<condition>"}'
+        enforcement:
+          type: string
+          nullable: true
+          example: Always respond in English.
+
+    RunRequest:
+      type: object
+      required: [spec, user_input]
+      properties:
+        spec:
+          $ref: '#/components/schemas/AgentSpec'
+        user_input:
+          type: string
+          example: What is the weather in Colombo?
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+          default: []
+
+    RunFileRequest:
+      type: object
+      required: [file_path, user_input]
+      properties:
+        file_path:
+          type: string
+          example: /app/factory_agent/tune_agent.md
+        user_input:
+          type: string
+          example: Generate a spec for a code review agent
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+          default: []
+
+    NamedRunRequest:
+      type: object
+      required: [user_input]
+      properties:
+        user_input:
+          type: string
+          example: Generate a spec for a customer support agent
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+          default: []
+
+    RunResponse:
+      type: object
+      properties:
+        content:
+          type: string
+          description: The agent response text or JSON
+          example: '{"city": "Colombo", "temperature": 30, "condition": "Sunny"}'
+        iterations:
+          type: integer
+          description: Number of reasoning iterations used
+          example: 2
+        tool_calls:
+          type: array
+          description: Tool calls made during execution
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+                example: Weather_API
+              args:
+                type: object
+              result:
+                type: object
+        finish_reason:
+          type: string
+          example: stop
+
+    AgentSummary:
+      type: object
+      properties:
+        name:
+          type: string
+          example: tune_agent
+        file:
+          type: string
+          example: tune_agent.md
+        spec_name:
+          type: string
+          example: AgentFactory Tune Agent
+        description:
+          type: string
+          example: Transforms a user idea into a fully structured AgentSpec JSON
+        version:
+          type: string
+          example: 0.1.0
+        model:
+          type: string
+          example: llama-3.3-70b-versatile
+        interfaces:
+          type: array
+          items:
+            type: string
+          example: [webchat]
+
+    ErrorResponse:
+      type: object
+      properties:
+        detail:
+          type: string
+          example: Agent 'unknown_agent' not found in factory_agent/
