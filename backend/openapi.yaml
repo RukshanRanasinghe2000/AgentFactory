@@ -1,0 +1,498 @@
+openapi: 3.0.3
+info:
+  title: AgentFactory Execution Engine API
+  description: >
+    Reads .md agent specs and runs them against LLM providers.
+    Supports OpenAI, Groq, Anthropic, and Ollama. Provides webchat (WebSocket),
+    webhook, and direct run endpoints.
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:8000
+
+tags:
+  - name: Health
+    description: Service health check
+  - name: Run
+    description: Execute agents from spec objects or .md files
+  - name: Webchat
+    description: Real-time WebSocket chat with agents
+  - name: Webhook
+    description: HTTP webhook triggers for agents
+  - name: Agents
+    description: List and parse agent spec files
+
+paths:
+
+  /:
+    get:
+      tags: [Health]
+      summary: Health Check
+      description: Returns service status and version.
+      operationId: root
+      responses:
+        '200':
+          description: Service is running
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: running
+                  service:
+                    type: string
+                    example: AgentFactory Execution Engine
+                  version:
+                    type: string
+                    example: 0.1.0
+
+  /run:
+    post:
+      tags: [Run]
+      summary: Run Agent from Spec Object
+      description: Execute an agent using a pre-parsed AgentSpec JSON object.
+      operationId: runFromSpec
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunRequest'
+      responses:
+        '200':
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /run/file:
+    post:
+      tags: [Run]
+      summary: Run Agent from File Path
+      description: Execute an agent by reading a .md spec file from disk.
+      operationId: runFromFile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RunFileRequest'
+      responses:
+        '200':
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/ParseError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /run/upload:
+    post:
+      tags: [Run]
+      summary: Upload and Run .md Spec
+      description: Upload a .md spec file and execute it immediately.
+      operationId: runUploadedSpec
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The .md agent spec file to upload and run
+                user_input:
+                  type: string
+                  default: Hello
+                  description: Initial message to send to the agent
+              required: [file]
+      responses:
+        '200':
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ParseError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /run/{agent_name}:
+    post:
+      tags: [Run]
+      summary: Run Named Agent
+      description: Run a named agent from the factory_agent/ directory.
+      operationId: runNamedAgent
+      parameters:
+        - name: agent_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the agent file (without .md extension)
+          example: tune_agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                user_input:
+                  type: string
+                  description: Message to send to the agent
+                history:
+                  type: array
+                  items:
+                    $ref: '#/components/schemas/ChatMessage'
+                  default: []
+              required: [user_input]
+      responses:
+        '200':
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /parse:
+    post:
+      tags: [Agents]
+      summary: Parse .md Spec File
+      description: Parse a .md spec file and return the structured spec without executing it.
+      operationId: parseSpecFile
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: The .md agent spec file to parse
+              required: [file]
+      responses:
+        '200':
+          description: Parsed spec object
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  spec:
+                    type: object
+                    description: Parsed AgentSpec as a JSON object
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '422':
+          $ref: '#/components/responses/ParseError'
+
+  /agents:
+    get:
+      tags: [Agents]
+      summary: List Available Agents
+      description: List all .md agent specs in the factory_agent/ directory.
+      operationId: listAgents
+      responses:
+        '200':
+          description: List of available agents
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  agents:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        name:
+                          type: string
+                          example: tune_agent
+                        file:
+                          type: string
+                          example: tune_agent.md
+                        spec_name:
+                          type: string
+                          example: AgentFactory Tune Agent
+                        description:
+                          type: string
+                        version:
+                          type: string
+                          example: 0.1.0
+                        model:
+                          type: string
+                          example: llama-3.3-70b-versatile
+                        interfaces:
+                          type: array
+                          items:
+                            type: string
+
+  /webhook/{agent_name}:
+    post:
+      tags: [Webhook]
+      summary: Webhook Trigger for Named Agent
+      description: >
+        Trigger a named agent via HTTP webhook. The payload is interpolated
+        into the agent's prompt template using ${http:payload.field} syntax.
+        Signature verified via X-Hub-Signature-256 or X-Signature header.
+      operationId: webhookNamed
+      parameters:
+        - name: agent_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the agent to trigger
+        - name: X-Hub-Signature-256
+          in: header
+          required: false
+          schema:
+            type: string
+          description: HMAC-SHA256 signature for payload verification (sha256=<hex>)
+        - name: X-Signature
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Alternative signature header
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Any JSON payload — interpolated into the agent's prompt template
+      responses:
+        '200':
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          description: Signature verification failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+  /webhook:
+    post:
+      tags: [Webhook]
+      summary: Webhook Trigger with Inline Spec
+      description: Trigger an agent with an inline spec and payload in the request body.
+      operationId: webhookInline
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                spec:
+                  $ref: '#/components/schemas/AgentSpec'
+                payload:
+                  type: object
+                  description: Webhook payload to pass to the agent
+              required: [spec, payload]
+      responses:
+        '200':
+          description: Agent response
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RunResponse'
+        '401':
+          description: Signature verification failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorDetail'
+        '422':
+          $ref: '#/components/responses/ParseError'
+        '500':
+          $ref: '#/components/responses/InternalError'
+
+components:
+  schemas:
+
+    ChatMessage:
+      type: object
+      required: [role, content]
+      properties:
+        role:
+          type: string
+          enum: [user, assistant, system]
+        content:
+          type: string
+
+    AgentModel:
+      type: object
+      properties:
+        provider:
+          type: string
+          example: groq
+        name:
+          type: string
+          example: llama-3.3-70b-versatile
+        temperature:
+          type: number
+          default: 0.7
+        base_url:
+          type: string
+          nullable: true
+        authentication:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [api-key, bearer, none]
+            api_key:
+              type: string
+              nullable: true
+
+    AgentSpec:
+      type: object
+      required: [model]
+      properties:
+        name:
+          type: string
+          example: My Agent
+        description:
+          type: string
+        version:
+          type: string
+          example: 0.1.0
+        max_iterations:
+          type: integer
+          default: 5
+        execution_mode:
+          type: string
+          enum: [sequential, agentic]
+          default: sequential
+        model:
+          $ref: '#/components/schemas/AgentModel'
+        role:
+          type: string
+        instructions:
+          type: string
+        output_format:
+          type: string
+          enum: [json, markdown, plain, html]
+          default: json
+        json_output_template:
+          type: string
+          nullable: true
+        enforcement:
+          type: string
+          nullable: true
+
+    RunRequest:
+      type: object
+      required: [spec, user_input]
+      properties:
+        spec:
+          $ref: '#/components/schemas/AgentSpec'
+        user_input:
+          type: string
+          description: Message to send to the agent
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+          default: []
+
+    RunFileRequest:
+      type: object
+      required: [file_path, user_input]
+      properties:
+        file_path:
+          type: string
+          description: Absolute or relative path to the .md spec file
+          example: /app/factory_agent/tune_agent.md
+        user_input:
+          type: string
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/ChatMessage'
+          default: []
+
+    RunResponse:
+      type: object
+      properties:
+        content:
+          type: string
+          description: The agent's response text
+        iterations:
+          type: integer
+          description: Number of reasoning iterations used
+          example: 1
+        tool_calls:
+          type: array
+          description: List of tool calls made during execution
+          items:
+            type: object
+        finish_reason:
+          type: string
+          example: stop
+
+    ErrorDetail:
+      type: object
+      properties:
+        detail:
+          type: string
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDetail'
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDetail'
+    ParseError:
+      description: Spec parse error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDetail'
+    InternalError:
+      description: Internal server error
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorDetail'
