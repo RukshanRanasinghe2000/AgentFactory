@@ -1,17 +1,17 @@
 openapi: 3.0.1
 info:
-  title: WSO2 Developer Platform User Store
-  description: This is a sample service that manages a list of users
+  title: WSO2 Developer Platform Reading List
+  description: This is a sample service that manages a list of reading items.
   contact: {}
   version: "1.0"
 servers:
-- url: http://localhost:8080/api/v1
+- url: //localhost:8080/api/v1/reading-list
 paths:
-  /users-eeee:
+  /books:
     get:
       tags:
-      - users
-      summary: List all 
+      - books
+      summary: List all the reading list books
       responses:
         "200":
           description: successful operation
@@ -20,17 +20,17 @@ paths:
               schema:
                 type: array
                 items:
-                  $ref: '#/components/schemas/models.User'
+                  $ref: '#/components/schemas/models.Book'
     post:
       tags:
-      - users
-      summary: Add a new user to the user store
+      - books
+      summary: Add a new book to the reading list
       requestBody:
-        description: New user details
+        description: New book details
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/models.User'
+              $ref: '#/components/schemas/models.Book'
         required: true
       responses:
         "201":
@@ -38,29 +38,32 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/models.User'
+                $ref: '#/components/schemas/models.Book'
         "400":
-          description: invalid user details
+          description: invalid book details
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/utils.ErrorResponse'
         "409":
-          description: user already exists
+          description: book already exists
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/utils.ErrorResponse'
       x-codegen-request-body-name: request
-  /users/{id}:
+  /books/{id}:
     get:
       tags:
-      - users
-      summary: Get user store user by id
+      - books
+      summary: Get reading list book by id
+      security:
+        - default:
+            - read:books 
       parameters:
       - name: id
         in: path
-        description: User ID
+        description: Book ID
         required: true
         schema:
           type: string
@@ -70,30 +73,30 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/models.User'
+                $ref: '#/components/schemas/models.Book'
         "404":
-          description: user not found
+          description: book not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/utils.ErrorResponse'
     put:
       tags:
-      - users
-      summary: Update a user store user by id
+      - books
+      summary: Update a reading list book by id
       parameters:
       - name: id
         in: path
-        description: User ID
+        description: Book ID
         required: true
         schema:
           type: string
       requestBody:
-        description: Updated user details
+        description: Updated book details
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/models.User'
+              $ref: '#/components/schemas/models.Book'
         required: true
       responses:
         "200":
@@ -101,15 +104,15 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/models.User'
+                $ref: '#/components/schemas/models.Book'
         "400":
-          description: invalid user details
+          description: invalid book details
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/utils.ErrorResponse'
         "404":
-          description: user not found
+          description: book not found
           content:
             application/json:
               schema:
@@ -117,12 +120,12 @@ paths:
       x-codegen-request-body-name: request
     delete:
       tags:
-      - users
-      summary: Delete a user store user by id
+      - books
+      summary: Delete a reading list book by id
       parameters:
       - name: id
         in: path
-        description: User ID
+        description: Book ID
         required: true
         schema:
           type: string
@@ -132,31 +135,54 @@ paths:
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/models.User'
+                $ref: '#/components/schemas/models.Book'
         "404":
-          description: user not found
+          description: book not found
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/utils.ErrorResponse'
 components:
+  securitySchemes:
+    default:
+      type: oauth2
+      flows:
+        implicit:
+          authorizationUrl: https://test.com
+          scopes: 
+            read:books: Grants read access
   schemas:
-    models.User:
+    models.Book:
       type: object
       properties:
-        age:
-          type: integer
+        author:
+          type: string
+          example: J. R. R. Tolkien
         id:
           type: string
           example: fe2594d0-ccea-42a2-97ac-0487458b5642
-        location:
+        status:
+          type: object
+          example: to_read
+          allOf:
+          - $ref: '#/components/schemas/models.ReadStatus'
+        title:
           type: string
-        name:
-          type: string
+          example: The Lord of the Rings
+    models.ReadStatus:
+      type: string
+      enum:
+      - to_read
+      - reading
+      - read
+      x-enum-varnames:
+      - ReadStatusToRead
+      - ReadStatusReading
+      - ReadStatusRead
     utils.ErrorResponse:
       type: object
       properties:
         message:
           type: string
           example: error message
-x-original-swagger-version: "2.0"
+
