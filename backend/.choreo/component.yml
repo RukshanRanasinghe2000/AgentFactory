@@ -1,70 +1,13 @@
-schemaVersion: 1.2
+schemaVersion: "1.2"
+version: "1.0.0"
 
 endpoints:
   - name: agentfactory-backend
-    displayName: AgentFactory Execution Engine
+    port: 8080
+    type: REST
+    networkVisibility: Public
+    context: /
     service:
       basePath: /
-      port: 8000
-    type: REST
-    networkVisibilities:
-      - Public
+      port: 8080
     schemaFilePath: openapi.yaml
-
-configurations:
-  env:
-    - name: MODEL_PROVIDER
-      valueFrom:
-        configForm:
-          displayName: Model Provider
-          required: false
-          type: string
-
-    - name: MODEL_NAME
-      valueFrom:
-        configForm:
-          displayName: Model Name
-          required: false
-          type: string
-
-    - name: MODEL_BASE_URL
-      valueFrom:
-        configForm:
-          displayName: Model Base URL
-          required: false
-          type: string
-
-    - name: MODEL_API_KEY
-      valueFrom:
-        configForm:
-          displayName: Model API Key
-          required: true
-          type: secret
-
-    - name: OPENAI_API_KEY
-      valueFrom:
-        configForm:
-          displayName: OpenAI API Key
-          required: false
-          type: secret
-
-    - name: GROQ_API_KEY
-      valueFrom:
-        configForm:
-          displayName: Groq API Key
-          required: false
-          type: secret
-
-    - name: ANTHROPIC_API_KEY
-      valueFrom:
-        configForm:
-          displayName: Anthropic API Key
-          required: false
-          type: secret
-
-    - name: GOOGLE_API_KEY
-      valueFrom:
-        configForm:
-          displayName: Google API Key
-          required: false
-          type: secret
