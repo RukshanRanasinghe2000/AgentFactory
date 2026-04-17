@@ -11,7 +11,7 @@ paths:
     get:
       tags:
       - books
-      summary: List all the reading list books
+      summary: This is a test 
       responses:
         "200":
           description: successful operation
