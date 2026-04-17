@@ -11,7 +11,7 @@ paths:
     get:
       tags:
       - users
-      summary: List all the user store users
+      summary: List all 
       responses:
         "200":
           description: successful operation
