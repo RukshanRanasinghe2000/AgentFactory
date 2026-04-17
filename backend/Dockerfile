@@ -1,18 +1,18 @@
-FROM python:3.11-slim
+FROM python:3.10-slim
+
+RUN useradd -m -u 10001 appuser
 
 WORKDIR /app
 
-# Install dependencies first (layer caching)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    poppler-utils \
+    && rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy source
-COPY . .
+COPY --chown=appuser:appuser . .
 
-# Non-root user for security
-RUN adduser --disabled-password --gecos "" appuser && chown -R appuser /app
-USER appuser
+USER 10001
 
-EXPOSE 8000
-
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8080"]
