@@ -319,7 +319,7 @@ GROQ_API_KEY=your_key_here
 python main.py
 ```
 
-API runs at [http://localhost:8000](http://localhost:8000) — interactive docs at [http://localhost:8000/docs](http://localhost:8000/docs)
+API runs at [http://localhost:8080](http://localhost:8080) — interactive docs at [http://localhost:8080/docs](http://localhost:8080/docs)
 
 ---
 

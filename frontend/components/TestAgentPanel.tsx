@@ -42,7 +42,7 @@ export default function TestAgentPanel({ spec, onClose }: Props) {
         },
       };
 
-      const res = await fetch("http://localhost:8000/run", {
+      const res = await fetch("http://localhost:8080/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
