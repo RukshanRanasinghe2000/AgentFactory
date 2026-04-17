@@ -41,14 +41,14 @@ def _load_agent(agent_name: str) -> AgentSpec:
     return AgentSpec(**parse_md_spec(content))
 
 
-# ── Health ────────────────────────────────────────────────────────────────────
+# Health 
 
 @app.get("/")
 async def root():
     return {"status": "running", "service": "AgentFactory Execution Engine", "version": "0.1.0"}
 
 
-# ── Run from spec object ──────────────────────────────────────────────────────
+# Run from spec object 
 
 @app.post("/run", response_model=RunResponse)
 async def run_from_spec(request: RunRequest):
@@ -58,7 +58,7 @@ async def run_from_spec(request: RunRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Run from .md file path ────────────────────────────────────────────────────
+# Run from .md file path 
 
 @app.post("/run/file", response_model=RunResponse)
 async def run_from_file(request: RunFileRequest):
@@ -74,7 +74,7 @@ async def run_from_file(request: RunFileRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Upload and run a .md file ─────────────────────────────────────────────────
+# Upload and run a .md file 
 
 @app.post("/run/upload", response_model=RunResponse)
 async def run_uploaded_spec(file: UploadFile = File(...), user_input: str = "Hello"):
@@ -89,7 +89,7 @@ async def run_uploaded_spec(file: UploadFile = File(...), user_input: str = "Hel
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Run by agent name ─────────────────────────────────────────────────────────
+# Run by agent name 
 
 class NamedRunRequest(BaseModel):
     user_input: str
@@ -106,7 +106,7 @@ async def run_named_agent(agent_name: str, request: NamedRunRequest):
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Parse a .md file (no execution) ──────────────────────────────────────────
+# Parse a .md file (no execution) 
 
 @app.post("/parse")
 async def parse_spec_file(file: UploadFile = File(...)):
@@ -118,7 +118,7 @@ async def parse_spec_file(file: UploadFile = File(...)):
         raise HTTPException(status_code=422, detail=str(e))
 
 
-# ── List available agents ─────────────────────────────────────────────────────
+# List available agents 
 
 @app.get("/agents")
 async def list_agents():
@@ -142,7 +142,7 @@ async def list_agents():
     return {"agents": agents}
 
 
-# ── Webchat — WebSocket (named agent) ────────────────────────────────────────
+# Webchat — WebSocket (named agent) 
 
 @app.websocket("/webchat/{agent_name}")
 async def webchat_named(websocket: WebSocket, agent_name: str):
@@ -165,7 +165,7 @@ async def webchat_named(websocket: WebSocket, agent_name: str):
     await handle_webchat(websocket, spec)
 
 
-# ── Webchat — WebSocket (inline spec) ────────────────────────────────────────
+# Webchat — WebSocket (inline spec) 
 
 @app.websocket("/webchat")
 async def webchat_inline(websocket: WebSocket):
@@ -190,7 +190,7 @@ async def webchat_inline(websocket: WebSocket):
     await handle_webchat(websocket, spec)
 
 
-# ── Webhook — HTTP POST (named agent) ────────────────────────────────────────
+# ── Webhook — HTTP POST (named agent) 
 
 @app.post("/webhook/{agent_name}")
 async def webhook_named(
@@ -229,7 +229,7 @@ async def webhook_named(
         raise HTTPException(status_code=500, detail=str(e))
 
 
-# ── Webhook — HTTP POST (inline spec) ────────────────────────────────────────
+# Webhook — HTTP POST (inline spec) 
 
 @app.post("/webhook")
 async def webhook_inline(
