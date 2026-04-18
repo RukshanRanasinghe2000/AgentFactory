@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 8080",
     "lint": "next lint"
   },
   "dependencies": {
@@ -13,13 +13,13 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "lucide-react": "^0.475.0",
-    "clsx": "^2.1.1"
+    "clsx": "^2.1.1",
+    "typescript": "^5"
   },
   "devDependencies": {
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
-    "typescript": "^5",
     "tailwindcss": "^4",
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
