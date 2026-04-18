@@ -24,6 +24,8 @@ export async function POST(req: NextRequest) {
       ? `${baseUrl.replace(/\/$/, "")}/chat/completions`
       : provider === "anthropic"
       ? "https://api.anthropic.com/v1/messages"
+      : provider === "groq"
+      ? "https://api.groq.com/openai/v1/chat/completions"
       : "https://api.openai.com/v1/chat/completions";
 
     let responseText: string;
