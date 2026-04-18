@@ -11,8 +11,15 @@ export async function POST(req: NextRequest) {
 
     const provider = process.env.MODEL_PROVIDER ?? "groq";
     const apiKey   = process.env.MODEL_API_KEY ?? "";
-    const model    = process.env.MODEL_NAME ?? "llama-3.3-70b-versatile";
     const baseUrl  = process.env.MODEL_BASE_URL ?? "";
+
+    const defaultModels: Record<string, string> = {
+      groq:      "llama-3.3-70b-versatile",
+      openai:    "gpt-4o-mini",
+      anthropic: "claude-haiku-4-5",
+      ollama:    "llama3.2",
+    };
+    const model = process.env.MODEL_NAME?.trim() || defaultModels[provider] || "llama-3.3-70b-versatile";
 
     if (!apiKey.trim()) {
       return NextResponse.json({ error: "MODEL_API_KEY is not set in .env" }, { status: 500 });
