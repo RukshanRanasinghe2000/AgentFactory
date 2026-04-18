@@ -25,32 +25,59 @@ def _resolve_url(tool: AgentTool, arguments: dict[str, Any]) -> str:
     """
     Build the final URL by:
     1. Resolving ${env:VAR} placeholders
-    2. Substituting {PARAM_KEY} placeholders from LLM-extracted arguments
-    3. Appending any remaining query_params that weren't in the URL template
+    2. Injecting api_key from authentication so {APPID}/{API_KEY} placeholders resolve
+    3. Substituting {PLACEHOLDER} patterns from LLM-extracted arguments
+    4. Appending query_params that are still missing from the URL
     """
     url = resolve_env_value(tool.transport.url) or ""
     if not url:
         raise ValueError(f"Tool '{tool.name}' has no URL configured")
 
-    # Replace {PLACEHOLDER} patterns with values from arguments
+    # Enrich arguments with api key under all common aliases
+    enriched_args = dict(arguments)
+    if tool.authentication and tool.authentication.api_key:
+        key = resolve_env_value(tool.authentication.api_key) or ""
+        if not key and tool.authentication.token:
+            key = resolve_env_value(tool.authentication.token) or ""
+        if key:
+            for alias in ("appid", "APPID", "api_key", "API_KEY", "apikey", "APIKEY",
+                          "token", "TOKEN", "key", "KEY"):
+                enriched_args.setdefault(alias, key)
+
+    # Track which placeholders were actually substituted
+    substituted_keys: set[str] = set()
+
     def replace_placeholder(match: re.Match) -> str:
-        key = match.group(1)
-        # Try exact key, then lowercase, then uppercase
-        val = (arguments.get(key) or arguments.get(key.lower()) or
-               arguments.get(key.upper()) or "")
-        return str(val) if val else match.group(0)  # leave unreplaced if not found
+        placeholder = match.group(1)
+        val = (enriched_args.get(placeholder) or
+               enriched_args.get(placeholder.lower()) or
+               enriched_args.get(placeholder.upper()) or "")
+        if val:
+            substituted_keys.add(placeholder.lower())
+            return str(val)
+        return match.group(0)  # leave unreplaced if not found
 
     url = re.sub(r"\{([^}]+)\}", replace_placeholder, url)
 
-    # Append any query_params defined in spec that aren't already in the URL
+    # Warn about any unresolved placeholders still in the URL
+    remaining = re.findall(r"\{([^}]+)\}", url)
+    if remaining:
+        import logging
+        logging.warning(f"Unresolved URL placeholders: {remaining} in {url}")
+
+    # Only append query_params that weren't already substituted into the URL
     if tool.query_params:
+        # Extract existing param keys AFTER substitution
         existing_keys = set(re.findall(r"[?&]([^=&]+)=", url))
         extra_pairs = []
         for p in tool.query_params:
-            if p.key in existing_keys:
+            key_lower = p.key.lower()
+            if p.key in existing_keys or key_lower in existing_keys:
                 continue
-            val = (arguments.get(p.key) or arguments.get(p.key.lower()) or
-                   arguments.get(p.key.upper()) or p.default or "")
+            if key_lower in substituted_keys:
+                continue
+            val = (enriched_args.get(p.key) or enriched_args.get(key_lower) or
+                   enriched_args.get(p.key.upper()) or p.default or "")
             if val:
                 extra_pairs.append(f"{p.key}={val}")
         if extra_pairs:
@@ -64,24 +91,26 @@ async def _call_http_tool(tool: AgentTool, tool_name: str, arguments: dict) -> A
     url = _resolve_url(tool, arguments)
     headers = {"Content-Type": "application/json"}
 
+    # For REST APIs (non-MCP), do a plain GET if no JSON-RPC method needed
+    is_rest = "/mcp" not in url and "jsonrpc" not in url
+
     auth = tool.authentication
     if auth:
         if auth.type == "bearer":
             token = resolve_env_value(auth.token)
             headers["Authorization"] = f"Bearer {token}"
         elif auth.type == "api-key":
-            key = resolve_env_value(auth.api_key)
-            headers["Authorization"] = f"Bearer {key}"
+            key = resolve_env_value(auth.api_key) or ""
+            if not is_rest:
+                # MCP endpoints use Authorization header
+                headers["Authorization"] = f"Bearer {key}"
+            # For REST APIs, the key is already injected into the URL by _resolve_url
         elif auth.type == "basic":
             import base64
             username = resolve_env_value(auth.username) or ""
             password = resolve_env_value(auth.password) or ""
             creds = base64.b64encode(f"{username}:{password}".encode()).decode()
             headers["Authorization"] = f"Basic {creds}"
-
-    # For REST APIs (non-MCP), do a plain GET if no JSON-RPC method needed
-    # Detect by checking if URL looks like a REST endpoint (no /mcp/ path)
-    is_rest = "/mcp" not in url and "jsonrpc" not in url
 
     async with httpx.AsyncClient(timeout=30) as client:
         if is_rest:

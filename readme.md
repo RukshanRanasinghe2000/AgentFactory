@@ -270,9 +270,10 @@ AgentFactory/
 │   ├── models.py                    # Pydantic models
 │   ├── requirements.txt
 │   └── .env                         # Backend API keys (gitignored)
-├── factory_agent/                   # Built-in agent specs
-│   ├── system_agent.md              # System prompts source of truth
-│   └── tune_agent.md                # AgentFactory tune agent spec
+├── frontend/                        # Next.js 15 application
+│   ├── factory_agent/               # Agent specs and system prompts
+│   │   ├── system_agent.md          # System prompts source of truth
+│   │   └── tune_agent.md            # AgentFactory tune agent spec
 ├── demo/                            # Screenshot assets for README
 ├── .env.example                     # Environment variable template
 └── .gitignore

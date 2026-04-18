@@ -23,6 +23,17 @@ def _build_system_prompt(spec: AgentSpec) -> str:
         parts.append(f"# Instructions\n\n{spec.instructions}")
     if spec.enforcement:
         parts.append(f"# Rules\n\n{spec.enforcement}")
+    # If tools are configured, explicitly instruct the LLM to use them
+    if spec.tools:
+        raw_list = spec.tools if isinstance(spec.tools, list) else spec.tools.get("mcp", [])
+        if raw_list:
+            tool_names = [t.get("name", "") for t in raw_list if isinstance(t, dict) and t.get("name")]
+            if tool_names:
+                parts.append(
+                    f"# Tool Usage\n\nYou have access to the following tools: {', '.join(tool_names)}. "
+                    f"When the user's request requires real-time or external data, call the appropriate tool. "
+                    f"If no tool is relevant, answer from your own knowledge."
+                )
     if spec.output_format == "json" and spec.json_output_template:
         parts.append(
             f"# Output Format\n\nReturn ONLY valid JSON matching this structure:\n\n"
@@ -136,6 +147,9 @@ async def _run_openai_compatible(
     all_tool_calls: list[dict] = []
     iterations = 0
     max_iter = spec.max_iterations if spec.execution_mode == "agentic" else 1
+    # Ensure at least 2 iterations when tools present (call + respond)
+    if tool_defs and max_iter < 2:
+        max_iter = 2
 
     while iterations < max_iter:
         iterations += 1
@@ -164,7 +178,12 @@ async def _run_openai_compatible(
             )
 
         # Handle tool calls (agentic loop)
-        messages.append(msg.model_dump(exclude_none=True))
+        # Groq requires content field on assistant messages even when tool_calls present
+        assistant_msg = msg.model_dump(exclude_none=True)
+        if "content" not in assistant_msg or assistant_msg["content"] is None:
+            assistant_msg["content"] = ""
+        messages.append(assistant_msg)
+
         for tc in msg.tool_calls:
             fn_name = tc.function.name
             try:
@@ -179,11 +198,22 @@ async def _run_openai_compatible(
                 except Exception as e:
                     tool_result = {"error": str(e)}
 
+            # Truncate large tool results to avoid overwhelming the context window
+            result_str = json.dumps(tool_result)
+            if len(result_str) > 8000:
+                # For weather/forecast APIs: keep only the first few entries
+                if isinstance(tool_result, dict) and "list" in tool_result:
+                    truncated = dict(tool_result)
+                    truncated["list"] = tool_result["list"][:5]  # first 5 forecast entries
+                    result_str = json.dumps(truncated)
+                else:
+                    result_str = result_str[:8000] + "... [truncated]"
+
             all_tool_calls.append({"name": fn_name, "args": fn_args, "result": tool_result})
             messages.append({
                 "role": "tool",
                 "tool_call_id": tc.id,
-                "content": json.dumps(tool_result),
+                "content": result_str,
             })
 
     # Max iterations reached
