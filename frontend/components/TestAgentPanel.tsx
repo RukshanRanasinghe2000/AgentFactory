@@ -42,7 +42,8 @@ export default function TestAgentPanel({ spec, onClose }: Props) {
         },
       };
 
-      const res = await fetch("http://localhost:8080/run", {
+      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
+      const res = await fetch(`${backendUrl}/run`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
