@@ -2,23 +2,24 @@ import fs from "fs";
 import path from "path";
 
 /**
- * Reads a named prompt from factory_agent/system_agent.md.
- * Extracts the content of the first fenced code block under the given section heading.
+ * Reads a named prompt from public/prompts/system_agent.md.
  *
- * Source of truth: frontend/factory_agent/system_agent.md
+ * The file lives in frontend/public/prompts/ which is always included
+ * in both Docker builds and buildpack deployments.
+ *
+ * Source of truth: frontend/public/prompts/system_agent.md
+ * (mirrored from frontend/factory_agent/system_agent.md)
  */
 export function loadPrompt(section: string): string {
-  const filePath = path.join(process.cwd(), "factory_agent", "system_agent.md");
+  const filePath = path.join(process.cwd(), "public", "factory_agents", "system_agent.md");
   const content = fs.readFileSync(filePath, "utf-8");
 
-  const sectionRegex = new RegExp(`# ${section}`, "m");
-  const sectionStart = content.search(sectionRegex);
+  const sectionStart = content.search(new RegExp(`# ${section}`, "m"));
   if (sectionStart === -1) {
     throw new Error(`Section "# ${section}" not found in system_agent.md`);
   }
 
-  const afterSection = content.slice(sectionStart);
-  const blockMatch = afterSection.match(/```.*?\r?\n([\s\S]*?)```/);
+  const blockMatch = content.slice(sectionStart).match(/```.*?\r?\n([\s\S]*?)```/);
   if (!blockMatch) {
     throw new Error(`No code block found under "# ${section}" in system_agent.md`);
   }

@@ -30,7 +30,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-AGENTS_DIR = Path(__file__).parent.parent / "frontend" / "factory_agent"
+AGENTS_DIR = Path(__file__).parent / "factory_agent"
 
 
 def _load_agent(agent_name: str) -> AgentSpec:
