@@ -146,10 +146,15 @@ async def _run_openai_compatible(
     response_format = {"type": "json_object"} if spec.output_format == "json" else None
     all_tool_calls: list[dict] = []
     iterations = 0
-    max_iter = spec.max_iterations if spec.execution_mode == "agentic" else 1
-    # Ensure at least 2 iterations when tools present (call + respond)
-    if tool_defs and max_iter < 2:
-        max_iter = 2
+    # When tools are present we always need at least 3 iterations:
+    # 1 = LLM decides to call tool, 2 = tool result returned, 3 = LLM generates final response
+    if tool_defs:
+        max_iter = max(spec.max_iterations, 3)
+    else:
+        max_iter = spec.max_iterations if spec.execution_mode == "agentic" else 1
+
+    # Track whether we've already received at least one tool result
+    tool_results_received = False
 
     while iterations < max_iter:
         iterations += 1
@@ -162,7 +167,8 @@ async def _run_openai_compatible(
             kwargs["response_format"] = response_format
         if tool_defs:
             kwargs["tools"] = tool_defs
-            kwargs["tool_choice"] = "auto"
+            # After tool results are in, force a text response — no more tool calls
+            kwargs["tool_choice"] = "none" if tool_results_received else "auto"
 
         completion = await client.chat.completions.create(**kwargs)
         choice = completion.choices[0]
@@ -215,6 +221,9 @@ async def _run_openai_compatible(
                 "tool_call_id": tc.id,
                 "content": result_str,
             })
+
+        # Mark that tool results are now in the message history
+        tool_results_received = True
 
     # Max iterations reached
     return RunResponse(
