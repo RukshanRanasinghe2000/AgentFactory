@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2, Wrench } from "lucide-react";
 
 const placeholders = [
   "An AI that reviews code for performance issues...",
@@ -54,6 +54,15 @@ export default function IdeaInput() {
       <p className="text-xs text-slate-500 mt-2 text-center">
         Press Enter or click Build Agent — we&apos;ll handle the rest
       </p>
+      <div className="flex items-center justify-center mt-4">
+        <a
+          href="/builder"
+          className="flex items-center gap-2 px-5 py-2 rounded-xl border border-slate-700 hover:border-violet-500 text-sm text-slate-300 hover:text-white bg-slate-800/50 hover:bg-violet-600/10 transition-all"
+        >
+          <Wrench size={14} className="text-violet-400" />
+          Open Builder directly
+        </a>
+      </div>
     </form>
   );
 }
