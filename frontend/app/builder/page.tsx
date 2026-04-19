@@ -4,7 +4,7 @@ import SpecEditor from "@/components/SpecEditor";
 import ClarificationStep, { type ClarifyQuestion } from "@/components/ClarificationStep";
 import { defaultSpec } from "@/lib/types";
 import type { AgentSpec } from "@/lib/types";
-import { Loader2, Sparkles, AlertCircle, RefreshCw } from "lucide-react";
+import { Sparkles, AlertCircle, RefreshCw } from "lucide-react";
 
 type Stage = "clarifying" | "loading" | "editing" | "error";
 
@@ -117,19 +117,46 @@ export default function BuilderPage() {
   // ── Loading screen ─────────────────────────────────────────────────────────
   if (stage === "loading") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-5">
-        <div className="relative">
-          <div className="w-16 h-16 rounded-full border-2 border-violet-800 flex items-center justify-center">
-            <Sparkles size={24} className="text-violet-400" />
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        {/* Icon circle — matches the image style */}
+        <div className="relative w-20 h-20">
+          <div className="w-20 h-20 rounded-full border-2 border-violet-700 flex items-center justify-center">
+            <Sparkles size={28} className="text-violet-400" />
           </div>
-          <Loader2 size={20} className="animate-spin text-violet-400 absolute -top-1 -right-1" />
+          {/* Spinning arc overlay */}
+          <svg className="absolute inset-0 w-20 h-20 animate-spin" viewBox="0 0 80 80">
+            <circle cx="40" cy="40" r="38" fill="none" stroke="url(#arc)" strokeWidth="2"
+              strokeDasharray="60 180" strokeLinecap="round" />
+            <defs>
+              <linearGradient id="arc" x1="0%" y1="0%" x2="100%" y2="0%">
+                <stop offset="0%" stopColor="#7c3aed" stopOpacity="0" />
+                <stop offset="100%" stopColor="#a78bfa" stopOpacity="1" />
+              </linearGradient>
+            </defs>
+          </svg>
         </div>
+
+        {/* Text */}
         <div className="text-center">
-          <p className="text-white font-medium text-sm">
+          <p className="text-white font-semibold text-base">
             {questions.length === 0 ? "Analysing your idea..." : "Generating your agent spec..."}
           </p>
-          <p className="text-slate-500 text-xs mt-1">Calling AI to refine your idea</p>
+          <p className="text-slate-500 text-sm mt-1">Calling AI to refine your idea</p>
         </div>
+
+        {/* Progress bar */}
+        <div className="w-48 h-1 bg-slate-800 rounded-full overflow-hidden">
+          <div className="h-full bg-violet-500 rounded-full animate-[progress_2s_ease-in-out_infinite]"
+            style={{ animation: "progress 2s ease-in-out infinite" }} />
+        </div>
+
+        <style>{`
+          @keyframes progress {
+            0%   { width: 0%;   margin-left: 0%; }
+            50%  { width: 60%;  margin-left: 20%; }
+            100% { width: 0%;   margin-left: 100%; }
+          }
+        `}</style>
       </div>
     );
   }
@@ -152,7 +179,7 @@ export default function BuilderPage() {
   return (
     <div className="max-w-5xl mx-auto px-6 py-10">
       <div className="flex items-center gap-3 mb-8">
-        <Sparkles size={20} className="text-violet-400" />
+        
         <h1 className="text-xl font-semibold text-white">Agent Spec Builder</h1>
         <span className="ml-auto text-xs text-slate-500 bg-slate-800 px-2 py-1 rounded">
           spec v{spec.spec_version}

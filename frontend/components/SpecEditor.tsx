@@ -5,7 +5,7 @@ import FieldBlock from "./FieldBlock";
 import OutputSchemaBuilder from "./OutputSchemaBuilder";
 import PreviewPopup from "./PreviewPopup";
 import TestAgentPanel from "./TestAgentPanel";
-import { Plus, Trash2, Download, Play, Key, ShieldAlert, X } from "lucide-react";
+import { Plus, Trash2, Download, Play, Key, ShieldAlert, X, MessageSquare, PenLine } from "lucide-react";
 import clsx from "clsx";
 
 interface Props {
@@ -218,20 +218,30 @@ export default function SpecEditor({ spec, onChange }: Props) {
                       <p className="text-xs text-slate-400">Query Parameters</p>
                       {/* Mode toggle */}
                       <div className="flex gap-2">
-                        {(["extract", "manual"] as const).map((mode) => (
-                          <button
-                            key={mode}
-                            onClick={() => setQueryModes((p) => ({ ...p, [tool.name]: mode }))}
-                            className={clsx(
-                              "flex-1 px-3 py-2 rounded-lg text-xs font-medium transition-colors border",
-                              (queryModes[tool.name] ?? "extract") === mode
-                                ? "bg-violet-600 border-violet-500 text-white"
-                                : "bg-slate-800 border-slate-700 text-slate-400 hover:text-white"
-                            )}
-                          >
-                            {mode === "extract" ? "🤖 Extract from chat" : "✏️ Enter manually"}
-                          </button>
-                        ))}
+                        <button
+                          onClick={() => setQueryModes((p) => ({ ...p, [tool.name]: "extract" }))}
+                          className={clsx(
+                            "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors border",
+                            (queryModes[tool.name] ?? "extract") === "extract"
+                              ? "border-violet-500 text-violet-300 bg-violet-600/10"
+                              : "border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 bg-transparent"
+                          )}
+                        >
+                          <MessageSquare size={13} />
+                          Extract from chat
+                        </button>
+                        <button
+                          onClick={() => setQueryModes((p) => ({ ...p, [tool.name]: "manual" }))}
+                          className={clsx(
+                            "flex-1 flex items-center justify-center gap-2 px-3 py-2 rounded-lg text-xs font-medium transition-colors border",
+                            (queryModes[tool.name] ?? "extract") === "manual"
+                              ? "border-violet-500 text-violet-300 bg-violet-600/10"
+                              : "border-slate-700 text-slate-400 hover:text-slate-200 hover:border-slate-600 bg-transparent"
+                          )}
+                        >
+                          <PenLine size={13} />
+                          Enter manually
+                        </button>
                       </div>
 
                       {/* Mode description */}

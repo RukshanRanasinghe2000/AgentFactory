@@ -58,6 +58,9 @@ export default function ClarificationStep({ idea, questions, onSubmit, onSkip }:
             Help us build a better spec for{" "}
             <span className="text-slate-200 italic">&ldquo;{idea.length > 60 ? idea.slice(0, 60) + "…" : idea}&rdquo;</span>
           </p>
+          <p className="text-slate-500 text-xs max-w-md mx-auto mt-1">
+            If any of these questions are not relevant to your idea, feel free to skip them.
+          </p>
         </div>
 
         {/* Questions */}
