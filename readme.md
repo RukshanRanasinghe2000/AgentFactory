@@ -4,7 +4,7 @@
 
 AgentFactory is a no-code/low-code platform for building AI agents using a structured Markdown specification format. Instead of writing code or wrestling with YAML configs, you fill in a visual form and get a clean, portable agent spec file that any compatible runtime can execute.
 
-> ⚠️ **Experimental** — AgentFactory is in active development. Interfaces and specifications may change as the platform continues to improve.
+> ⚠️ **This is an experimental project** — AgentFactory is in active development. Interfaces and specifications may change as the platform continues to improve.
 
 
 ---
