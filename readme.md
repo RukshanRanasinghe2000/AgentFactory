@@ -112,6 +112,43 @@ graph TD
 
 ---
 
+## User Flow
+
+```mermaid
+flowchart TD
+    Start([User visits AgentFactory]) --> Idea[Types agent idea on landing page]
+    Idea --> Clarify{AI generates\n3 clarification questions}
+    Clarify -->|Answers questions| Enrich[Enriched idea sent to AI]
+    Clarify -->|Skips| Enrich
+    Enrich --> Refine[AI generates full AgentSpec JSON]
+    Refine --> Builder[Builder pre-filled with spec]
+
+    Builder --> EditCore[Edit Core fields\nRole, Instructions, Output Schema]
+    Builder --> EditModel[Configure Model\nProvider, API Key, Temperature]
+    Builder --> EditTools[Add MCP Tools\nTransport, Auth, Query Params]
+    Builder --> EditInterfaces[Set Interfaces\nwebchat, consolechat, webhook]
+
+    EditCore & EditModel & EditTools & EditInterfaces --> Preview[Preview tab\nLive YAML spec]
+    Preview --> Export[Export agent.md]
+
+    Builder --> TestFlow[Click Test Agent]
+    TestFlow --> GroqNotice[Groq environment notice]
+    GroqNotice -->|Has tools with auth| Credentials[Enter API keys\nand query param mode]
+    GroqNotice -->|No tools| Chat
+    Credentials --> Chat[Live chat with agent]
+
+    Chat --> ToolCall{Agent calls\nMCP tool?}
+    ToolCall -->|Yes| Resolve[Resolve URL placeholders\nfrom chat message]
+    Resolve --> CallAPI[Call external API]
+    CallAPI --> Response[LLM generates final response]
+    ToolCall -->|No| Response
+    Response --> Chat
+
+    Export --> Runtime([Deploy to any\nAFM-compatible runtime])
+```
+
+---
+
 ## Features
 
 ### Landing Page
@@ -237,14 +274,14 @@ Query param values are extracted automatically from the user's chat message by t
 
 **Limitations:**
 
-| Scenario | Support |
-|---|---|
-| REST HTTP tools with `{PLACEHOLDER}` in URL | ✅ Full support |
-| REST HTTP tools with `query_params` defined | ✅ Full support |
-| MCP JSON-RPC tools (stdio or HTTP `/mcp/`) | ⚠️ Partial — query params are passed as `arguments` in the JSON-RPC payload, not appended to the URL |
-| Params ambiguous in the user's message | ⚠️ Depends on LLM quality — `units=metric` won't be extracted unless the user mentions it |
-| Required params the user never mentions | ❌ The LLM may leave them empty or hallucinate a value |
-| Non-HTTP tools (stdio) | ❌ Query params don't apply — stdio tools use stdin/stdout, not URLs |
+| Scenario                                    | Support                                                                                             |
+| ---------------------------------------------| -----------------------------------------------------------------------------------------------------|
+| REST HTTP tools with `{PLACEHOLDER}` in URL | ✅ Full support                                                                                      |
+| REST HTTP tools with `query_params` defined | ✅ Full support                                                                                      |
+| MCP JSON-RPC tools (stdio or HTTP `/mcp/`)  | ⚠️ Partial — query params are passed as `arguments` in the JSON-RPC payload, not appended to the URL |
+| Params ambiguous in the user's message      | ⚠️ Depends on LLM quality — `units=metric` won't be extracted unless the user mentions it            |
+| Required params the user never mentions     | ❌ The LLM may leave them empty or hallucinate a value                                               |
+| Non-HTTP tools (stdio)                      | ❌ Query params don't apply — stdio tools use stdin/stdout, not URLs                                 |
 
 The key dependency is that the LLM must be able to infer the param value from the user's message. If a required param has no signal in the message (e.g. `appid` for an API key), it won't be extracted — which is why API keys are still collected in the popup separately.
 
