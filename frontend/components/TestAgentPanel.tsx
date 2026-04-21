@@ -42,8 +42,8 @@ export default function TestAgentPanel({ spec, onClose }: Props) {
         },
       };
 
-      const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || "http://localhost:8080";
-      const res = await fetch(`${backendUrl}/run`, {
+      // Use the Next.js proxy route — keeps backend URL server-side only
+      const res = await fetch("/api/run", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
