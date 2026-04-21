@@ -15,8 +15,10 @@ The core idea — that an AI agent should be fully described by a human-readable
 
 ---
 
-**Live Demo URL:** [https://81e5dc73-d19c-4960-b2b6-71e4987ebca0.e1-us-east-azure.choreoapps.dev/](https://81e5dc73-d19c-4960-b2b6-71e4987ebca0.e1-us-east-azure.choreoapps.dev/)
+**Live Demo URL:** [https://5ed213ca-bf28-41cc-a743-a003f9ca173b.e1-us-east-azure.choreoapps.dev](https://5ed213ca-bf28-41cc-a743-a003f9ca173b.e1-us-east-azure.choreoapps.dev)
 
+
+## Demo Video
 ![AgentFactory Demo Vedio](demo/demo_video.gif)
 
 ---
