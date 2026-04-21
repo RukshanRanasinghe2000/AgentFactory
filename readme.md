@@ -19,7 +19,11 @@ The core idea — that an AI agent should be fully described by a human-readable
 
 
 ## Demo Video
-![AgentFactory Demo Vedio](demo/demo_video_.gif)
+
+<video src="demo/demo_video.mp4" controls width="100%"></video>
+
+> If the video doesn't play inline, [click here to watch the MP4](demo/demo_video.mp4).
+
 
 ---
 
