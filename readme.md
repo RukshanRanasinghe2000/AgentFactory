@@ -18,16 +18,17 @@ The core idea — that an AI agent should be fully described by a human-readable
 **Live Demo URL:** [https://5ed213ca-bf28-41cc-a743-a003f9ca173b.e1-us-east-azure.choreoapps.dev](https://5ed213ca-bf28-41cc-a743-a003f9ca173b.e1-us-east-azure.choreoapps.dev)
 
 
-## Demo Video
+## Demo Videos
 
 <video src="demo/demo_video.mp4" controls width="100%"></video>
 
 > If the video doesn't play inline, [click here to watch the MP4](demo/demo_video.mp4).
 
+![AgentFactory Demo](demo/demo_video.gif)
 
 ---
 
-## Demo
+## Demo Images
 
 ### Home — Idea Input
 ![Home](demo/landing.png)
@@ -53,13 +54,16 @@ The core idea — that an AI agent should be fully described by a human-readable
 ![Expanction](demo/inst_.png)
 
 ### Question Popup — Refining user idea 
-![Chatpopup](demo/cat_popup.png)
+![Chatpopup](demo/chat_popup.png)
 
 ### Environment Notice Popup — Inform the user about the runtime model
 ![Environment](demo/env_.png)
 
 ### API Key Popup — Obtaining the API Key required and query param for MCP (testing purposes)
 ![API_Key Popup](demo/key_conf.png)
+
+### Example Chat in the Testing Env
+![API_Key Popup](demo/chat_.png)
 
 ---
 
