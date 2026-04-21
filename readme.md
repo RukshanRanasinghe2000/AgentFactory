@@ -19,7 +19,7 @@ The core idea — that an AI agent should be fully described by a human-readable
 
 
 ## Demo Video
-![AgentFactory Demo Vedio](demo/demo_video.gif)
+![AgentFactory Demo Vedio](demo/demo_video_.gif)
 
 ---
 
@@ -309,7 +309,8 @@ AgentFactory/
 │   │   ├── globals.css              # Global styles + CSS variables
 │   │   ├── api/
 │   │   │   ├── clarify/route.ts     # Generates clarification questions
-│   │   │   └── refine/route.ts      # Generates full AgentSpec JSON
+│   │   │   ├── refine/route.ts      # Generates full AgentSpec JSON
+│   │   │   └── run/route.ts         # Proxy to backend execution engine
 │   │   ├── builder/
 │   │   │   └── page.tsx             # Builder page (clarify → refine → edit)
 │   │   ├── agents/
@@ -336,6 +337,7 @@ AgentFactory/
 │   │   ├── system_agent.md          # System prompts (edit here, sync to public/)
 │   │   └── tune_agent.md            # AgentFactory tune agent spec
 │   ├── Dockerfile                   # Multi-stage Docker build (port 3000)
+│   ├── .env.example                 # Frontend env var template
 │   └── .env                         # Frontend env vars (gitignored)
 ├── backend/                         # FastAPI execution engine
 │   ├── main.py                      # API routes
@@ -351,6 +353,7 @@ AgentFactory/
 │   ├── requirements.txt
 │   ├── .choreo/
 │   │   └── component.yml            # Choreo component descriptor
+│   ├── .env.example                 # Backend env var template
 │   └── .env                         # Backend API keys (gitignored)
 ├── demo/                            # Screenshot assets for README
 ├── .env.example                     # Environment variable template
@@ -371,30 +374,21 @@ AgentFactory/
 
 ```bash
 cd frontend
+cp .env.example .env
+# Edit .env and add your MODEL_API_KEY
 npm install
 npm run dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000)
 
-Add your Groq API key to `frontend/.env` for AI spec generation:
-```
-MODEL_API_KEY=gsk_your_groq_key_here
-```
-
 ### Backend (Execution Engine)
 
 ```bash
 cd backend
+cp .env.example .env
+# Edit .env and add your GROQ_API_KEY (or other provider keys)
 pip install -r requirements.txt
-```
-
-Add your API keys to `backend/.env`:
-```
-GROQ_API_KEY=your_key_here
-```
-
-```bash
 python main.py
 ```
 
